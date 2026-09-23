@@ -49,6 +49,10 @@ workflows:
           app-store-connect fetch-signing-files com.kaichuan.dailystore \
             --type IOS_APP_STORE --create \
             --certificate-key "@file:$HOME/cert_key.pem"
+          # The widget extension needs its own bundle id and profile.
+          app-store-connect fetch-signing-files com.kaichuan.dailystore.widget \
+            --type IOS_APP_STORE --create \
+            --certificate-key "@file:$HOME/cert_key.pem"
           keychain add-certificates
       - name: Apply signing settings
         script: |
