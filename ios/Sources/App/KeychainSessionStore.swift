@@ -9,11 +9,11 @@ struct KeychainError: Error, LocalizedError {
 
 /// The Riot session is as good as a password with 2FA already passed, so it only ever lives here.
 struct KeychainSessionStore: SessionStore {
-    private let base: [String: Any] = [
+    private var base: [String: Any] { [
         kSecClass as String: kSecClassGenericPassword,
         kSecAttrService as String: "com.kaichuan.dailystore.riot-session",
         kSecAttrAccount as String: "default",
-    ]
+    ] }
 
     func load() throws -> RiotSession? {
         var query = base

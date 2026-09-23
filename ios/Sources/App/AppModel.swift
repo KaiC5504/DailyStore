@@ -26,7 +26,7 @@ final class AppModel {
         let http = URLSessionHTTPClient()
         let relay = LogRelay()
         self.http = http
-        self.service = StoreService(http: http, sessions: KeychainSessionStore(), log: relay.send)
+        self.service = StoreService(http: http, sessions: KeychainSessionStore(), log: { relay.send($0) })
         relay.model = self
     }
 
