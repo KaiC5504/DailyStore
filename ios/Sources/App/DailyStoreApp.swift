@@ -1,22 +1,22 @@
 import SwiftUI
 
-// Smoke-test stub so the pipeline can be proven end to end before the real app exists.
 @main
 struct DailyStoreApp: App {
+    @State private var model = AppModel()
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
-        }
-    }
-}
-
-struct ContentView: View {
-    var body: some View {
-        VStack(spacing: 12) {
-            Text("DailyStore")
-                .font(.largeTitle.bold())
-            Text("Pipeline smoke test")
-                .foregroundStyle(.secondary)
+            StoreView()
+                .environment(model)
+                .preferredColorScheme(.dark)
+                .task { await model.start() }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { Task { await model.refreshIfStale() } }
+                }
+                .sheet(isPresented: $model.showLogin) {
+                    LoginView { cookies in Task { await model.signIn(cookies: cookies) } }
+                }
         }
     }
 }

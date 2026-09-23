@@ -28,6 +28,11 @@ jobs:
           xcodebuild -version
           xcodebuild -showsdks | grep -i iphone || true
 
+      # Also runs on Windows, but Apple's Foundation differs from swift-corelibs in places
+      # that matter here (header folding, URLRequest bodies).
+      - name: Core package tests
+        run: swift test --package-path ios/Packages/ValorantCore
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
