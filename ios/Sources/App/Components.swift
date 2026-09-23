@@ -38,7 +38,7 @@ struct RemoteImage: View {
         AsyncImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.35))) { phase in
             switch phase {
             case let .success(image):
-                image.resizable().aspectRatio(contentMode: contentMode).transition(.opacity.combined(with: .scale(0.96)))
+                image.resizable().aspectRatio(contentMode: contentMode).transition(.opacity.combined(with: .scale(scale: 0.96)))
             case .failure:
                 Image(systemName: "photo").font(.title2).foregroundStyle(Theme.textFaint)
             default:
@@ -164,7 +164,7 @@ struct LoopingVideo: UIViewRepresentable {
     }
 
     final class PlayerView: UIView {
-        override static var layerClass: AnyClass { AVPlayerLayer.self }
+        override class var layerClass: AnyClass { AVPlayerLayer.self }
         private var player: AVQueuePlayer?
         private var looper: AVPlayerLooper?
         private(set) var current: URL?

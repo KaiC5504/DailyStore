@@ -52,7 +52,7 @@ struct SkinDetailView: View {
                     .rotationEffect(.degrees(appeared ? -8 : -30))
                     .shadow(color: color.opacity(0.6), radius: 30, y: 12)
                     .id(art)
-                    .transition(.asymmetric(insertion: .scale(0.8).combined(with: .opacity), removal: .opacity))
+                    .transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .opacity))
             }
         }
         .frame(height: 300)

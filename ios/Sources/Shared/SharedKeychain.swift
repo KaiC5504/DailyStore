@@ -97,7 +97,7 @@ struct SharedKeychain: Sendable {
         if (try? self.data(Account.session)) == nil {
             try? set(data, for: Account.session)
         }
-        SecItemDelete(legacy as CFDictionary)
+        _ = SecItemDelete(legacy as CFDictionary)
     }
 }
 

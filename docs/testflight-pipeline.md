@@ -21,6 +21,17 @@ Identity used everywhere: app name `DailyStore`, scheme `DailyStore`, bundle id
 `com.kaichuan.dailystore`. Changing any of these means changing `codemagic.yaml`,
 `ios/project.yml` and the Actions workflow together.
 
+The widget extension is `DailyStoreWidget`, bundle id `com.kaichuan.dailystore.widget`.
+Codemagic fetches (and on first run creates) a profile for each bundle id separately.
+App and widget share data through the keychain group
+`$(AppIdentifierPrefix)com.kaichuan.dailystore.shared`, not an App Group. App Store
+profiles already allow `TEAMID.*` keychain groups, so this needs no work in the portal.
+An App Group would mean registering it by hand in the portal, since the API can't.
+Both targets' `CFBundleShortVersionString` and `CFBundleVersion` must match.
+
+Debug builds accept `-DemoData YES` (plus `-DemoTab`, `-DemoReveal`, `-DemoDetail`,
+`-DemoWidgets`), so the Actions run can screenshot every screen without a Riot account.
+
 ## Pipeline-critical settings in ios/project.yml
 
 Keep these when building out the real app. Each one was learned the hard way.
