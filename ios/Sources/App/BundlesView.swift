@@ -51,10 +51,7 @@ private struct BundleCard: View {
     var body: some View {
         let info = model.catalog?.bundle(bundle.dataAssetID)
         ZStack(alignment: .bottomLeading) {
-            RemoteImage(url: info?.art, contentMode: .fill)
-                .frame(height: 210)
-                .frame(maxWidth: .infinity)
-                .clipped()
+            BannerImage(url: info?.art, height: 210)
                 .visualEffect { content, proxy in
                     content.offset(y: (proxy.frame(in: .scrollView).minY - 200) * -0.08)
                 }
@@ -97,9 +94,7 @@ struct BundleDetailView: View {
         let info = model.catalog?.bundle(bundle.dataAssetID)
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                RemoteImage(url: info?.art, contentMode: .fill)
-                    .frame(height: 230)
-                    .frame(maxWidth: .infinity)
+                BannerImage(url: info?.art, height: 230)
                     .clipShape(.rect(cornerRadius: Theme.cardRadius))
                 VStack(alignment: .leading, spacing: 6) {
                     Text((info?.name ?? "Bundle").uppercased())
@@ -175,5 +170,20 @@ struct BundleDetailView: View {
         case .flex: "FLEX"
         case .other: "ITEM"
         }
+    }
+}
+
+/// Wide art cropped to fill a fixed-height slot. The image sits in an overlay so its
+/// natural width can't widen the layout, which a plain `.fill` frame does.
+struct BannerImage: View {
+    let url: URL?
+    let height: CGFloat
+
+    var body: some View {
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .overlay { RemoteImage(url: url, contentMode: .fill) }
+            .clipped()
     }
 }
