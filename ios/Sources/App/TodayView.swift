@@ -112,12 +112,11 @@ struct SkinCard: View {
     private var color: Color { model.catalog.tierColor(offer.itemID) }
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            glow
+        VStack(alignment: .leading, spacing: 0) {
             RemoteImage(url: skin?.icon)
                 .padding(.horizontal, 12)
-                .padding(.top, 36)
-                .padding(.bottom, 76)
+                .padding(.top, 34)
+                .padding(.bottom, 6)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .rotationEffect(.degrees(-12))
                 .shadow(color: color.opacity(0.55), radius: 16, y: 6)
@@ -134,6 +133,7 @@ struct SkinCard: View {
             .padding(14)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(glow)
         .overlay(alignment: .topTrailing) {
             if model.isWishlisted(offer.itemID) {
                 WishlistHeart(isOn: true).padding(10)

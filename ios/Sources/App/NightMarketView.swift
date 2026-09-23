@@ -119,7 +119,8 @@ private struct NightCard: View {
             .padding(14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .background(
-                RadialGradient(colors: [color.opacity(0.45), .clear], center: .center, startRadius: 4, endRadius: 140)
+                RadialGradient(colors: [color.opacity(0.45), .clear], center: .center, startRadius: 4, endRadius: 140),
+                in: .rect(cornerRadius: Theme.cardRadius)
             )
             .glassEffect(.regular.tint(color.opacity(0.1)), in: .rect(cornerRadius: Theme.cardRadius))
             .matchedTransitionSource(id: offer.offer.itemID, in: zoom)
