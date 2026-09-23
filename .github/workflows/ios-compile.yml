@@ -1,0 +1,103 @@
+name: iOS compile check
+
+# Unsigned simulator build: app build, launch, one screenshot. Needs no Apple account.
+# The signed device build lives in codemagic.yaml.
+
+on:
+  push:
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios-compile.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ios-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          # Newest Xcode on the image; the project targets iOS 26.
+          NEWEST=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$NEWEST" ]; then sudo xcode-select -s "$NEWEST"; fi
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i iphone || true
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: |
+          cd ios
+          xcodegen generate
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          best = None
+          for runtime, items in devices.items():
+              if 'iOS' not in runtime:
+                  continue
+              for device in items:
+                  if 'iPhone' in device['name'] and device['isAvailable']:
+                      best = (runtime, device['udid'], device['name'])
+          print(best[1])
+          ")
+          echo "Booting $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          # Ad-hoc signed rather than CODE_SIGNING_ALLOWED=NO so entitlements still embed.
+          xcodebuild \
+            -project ios/DailyStore.xcodeproj \
+            -scheme DailyStore \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -configuration Debug \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=YES \
+            build
+
+      # Compiling only proves it parses. Launching proves the first screen does not
+      # crash, and the screenshot is the only look at the UI before TestFlight.
+      - name: Install, launch and screenshot
+        run: |
+          UDID="${{ steps.sim.outputs.udid }}"
+          xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/DailyStore.app
+          mkdir -p shots
+          xcrun simctl launch "$UDID" com.kaichuan.dailystore
+          sleep 15
+          xcrun simctl io "$UDID" screenshot shots/home.png
+          ls -la shots
+
+      - name: Collect crash reports
+        if: always()
+        run: |
+          mkdir -p shots/crashes
+          find ~/Library/Logs/DiagnosticReports -name "DailyStore*" -exec cp {} shots/crashes/ \; 2>/dev/null || true
+          if [ -n "$(ls -A shots/crashes 2>/dev/null)" ]; then
+            echo "CRASHES FOUND:"
+            ls -la shots/crashes
+            head -60 shots/crashes/* || true
+          else
+            echo "no crash reports"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulator-screenshots
+          path: shots/
