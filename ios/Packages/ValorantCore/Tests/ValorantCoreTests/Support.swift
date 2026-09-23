@@ -97,11 +97,13 @@ enum Fixtures {
     static let skins = """
     {"status": 200, "data": [
       {"uuid": "SKIN-A", "displayName": "Araxys Sheriff", "contentTierUuid": "411e4a55-4e59-7757-41f0-86a53f101bb5",
-       "displayIcon": null, "chromas": [{"fullRender": "https://media.valorant-api.com/chroma-a.png", "streamedVideo": null}],
-       "levels": [{"uuid": "LVL-1", "displayIcon": null, "streamedVideo": null},
-                  {"uuid": "lvl-1b", "displayIcon": null, "streamedVideo": "https://valorant.dyn.riotcdn.net/a.mp4"}]},
+       "displayIcon": null,
+       "chromas": [{"uuid": "c-a1", "displayName": "Araxys Sheriff", "displayIcon": null, "fullRender": "https://media.valorant-api.com/chroma-a.png", "swatch": null, "streamedVideo": null},
+                   {"uuid": "c-a2", "displayName": "Araxys Sheriff Level 4\\r\\n(Variant 1 Red)", "displayIcon": "https://x/c2.png", "fullRender": null, "swatch": "https://x/s2.png", "streamedVideo": "https://x/c2.mp4"}],
+       "levels": [{"uuid": "LVL-1", "levelItem": null, "displayIcon": null, "streamedVideo": null},
+                  {"uuid": "lvl-1b", "levelItem": "EEquippableSkinLevelItem::VFX", "displayIcon": null, "streamedVideo": "https://valorant.dyn.riotcdn.net/a.mp4"}]},
       {"uuid": "skin-b", "displayName": "Luxe Ghost", "contentTierUuid": null, "displayIcon": "https://media.valorant-api.com/b.png",
-       "chromas": [], "levels": [{"uuid": "lvl-4", "displayIcon": "https://media.valorant-api.com/lvl-4.png", "streamedVideo": null}]},
+       "chromas": [], "levels": [{"uuid": "lvl-4", "displayIcon": "https://media.valorant-api.com/weaponskinlevels/lvl-4/displayicon.png", "streamedVideo": null}]},
       {"uuid": "skin-empty", "displayName": "Random Favorite Skin", "contentTierUuid": null, "displayIcon": null, "chromas": [], "levels": []}
     ]}
     """
@@ -110,5 +112,18 @@ enum Fixtures {
     {"status": 200, "data": [
       {"uuid": "411e4a55-4e59-7757-41f0-86a53f101bb5", "devName": "Ultra", "rank": 4, "highlightColor": "fad66333", "displayIcon": "https://media.valorant-api.com/contenttiers/411e4a55-4e59-7757-41f0-86a53f101bb5/displayicon.png"}
     ]}
+    """
+
+    static let sprays = """
+    {"status": 200, "data": [{"uuid": "SPRAY-1", "displayName": "Nice Spray", "displayIcon": "https://x/d.png", "fullTransparentIcon": "https://x/t.png"}]}
+    """
+
+    static let titles = """
+    {"status": 200, "data": [{"uuid": "t-1", "displayName": "Tiger Title", "titleText": "Tiger", "displayIcon": null}]}
+    """
+
+    static let bundles = """
+    {"status": 200, "data": [{"uuid": "2116A38E-4b71-f169-0d16-ce9289af4bfa", "displayName": "Reaver 2.0", "displayNameSubText": null,
+      "displayIcon": "https://x/b.png", "verticalPromoImage": "https://x/v.png", "extra": 1}]}
     """
 }

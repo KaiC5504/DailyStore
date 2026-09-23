@@ -81,11 +81,30 @@ jobs:
       - name: Install, launch and screenshot
         run: |
           UDID="${{ steps.sim.outputs.udid }}"
+          APP=com.kaichuan.dailystore
           xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/DailyStore.app
           mkdir -p shots
-          xcrun simctl launch "$UDID" com.kaichuan.dailystore
+          xcrun simctl launch "$UDID" $APP
           sleep 15
-          xcrun simctl io "$UDID" screenshot shots/home.png
+          xcrun simctl io "$UDID" screenshot shots/01-first-launch.png
+          # Debug builds read -DemoData and friends from the launch arguments, so every
+          # screen can be looked at without a Riot account. The first demo launch also
+          # downloads the catalog, hence the longer wait.
+          shoot() {
+            name=$1; wait=$2; shift 2
+            xcrun simctl terminate "$UDID" $APP || true
+            xcrun simctl launch "$UDID" $APP -DemoData YES "$@"
+            sleep "$wait"
+            xcrun simctl io "$UDID" screenshot "shots/$name.png"
+          }
+          shoot 02-today 40 -DemoTab today
+          shoot 03-night-hidden 10 -DemoTab night
+          shoot 04-night-revealed 10 -DemoTab night -DemoReveal YES
+          shoot 05-bundles 10 -DemoTab bundles
+          shoot 06-detail 12 -DemoTab today -DemoDetail 3
+          shoot 07-wishlist 10 -DemoTab wishlist
+          shoot 08-settings 8 -DemoTab settings
+          shoot 09-widgets 8 -DemoWidgets YES
           ls -la shots
 
       - name: Collect crash reports

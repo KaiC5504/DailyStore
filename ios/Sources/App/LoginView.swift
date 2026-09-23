@@ -14,8 +14,14 @@ struct LoginView: View {
                     if isLoading { ProgressView().controlSize(.large) }
                 }
                 .safeAreaInset(edge: .top) {
-                    Label("Tick “Stay signed in” so you stay logged in for weeks.", systemImage: "checkmark.square")
+                    VStack(spacing: 3) {
+                        Label("Tick “Stay signed in” so you stay logged in for weeks.", systemImage: "checkmark.square")
+                        Text("Saved your Riot login in Passwords? Tap the key above the keyboard to fill it.")
+                            .foregroundStyle(.secondary)
+                    }
                         .font(.footnote.weight(.medium))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                         .padding(.vertical, 10)
                         .frame(maxWidth: .infinity)
                         .background(.thinMaterial)

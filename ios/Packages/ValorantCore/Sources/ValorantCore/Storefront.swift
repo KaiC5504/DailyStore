@@ -11,6 +11,12 @@ public struct StoreOffer: Codable, Hashable, Sendable {
     /// Skin level UUID; valorant-api.com keys skins by their first level.
     public let itemID: String
     public let cost: Int
+
+    public init(offerID: String, itemID: String, cost: Int) {
+        self.offerID = offerID
+        self.itemID = itemID
+        self.cost = cost
+    }
 }
 
 public struct NightMarketOffer: Codable, Hashable, Sendable {
@@ -18,6 +24,13 @@ public struct NightMarketOffer: Codable, Hashable, Sendable {
     public let discountedCost: Int
     public let discountPercent: Int
     public let isSeen: Bool
+
+    public init(offer: StoreOffer, discountedCost: Int, discountPercent: Int, isSeen: Bool) {
+        self.offer = offer
+        self.discountedCost = discountedCost
+        self.discountPercent = discountPercent
+        self.isSeen = isSeen
+    }
 }
 
 public struct BundleItem: Codable, Hashable, Sendable {
@@ -25,6 +38,15 @@ public struct BundleItem: Codable, Hashable, Sendable {
     public let itemID: String
     public let basePrice: Int
     public let discountedPrice: Int
+
+    public var kind: ItemKind { ItemKind(typeID: itemTypeID) }
+
+    public init(itemTypeID: String, itemID: String, basePrice: Int, discountedPrice: Int) {
+        self.itemTypeID = itemTypeID
+        self.itemID = itemID
+        self.basePrice = basePrice
+        self.discountedPrice = discountedPrice
+    }
 }
 
 public struct FeaturedBundle: Codable, Hashable, Sendable {
@@ -35,6 +57,15 @@ public struct FeaturedBundle: Codable, Hashable, Sendable {
     public let baseCost: Int?
     public let discountedCost: Int?
     public let remainingSeconds: Int
+
+    public init(id: String, dataAssetID: String, items: [BundleItem], baseCost: Int?, discountedCost: Int?, remainingSeconds: Int) {
+        self.id = id
+        self.dataAssetID = dataAssetID
+        self.items = items
+        self.baseCost = baseCost
+        self.discountedCost = discountedCost
+        self.remainingSeconds = remainingSeconds
+    }
 }
 
 public struct Storefront: Codable, Hashable, Sendable {
@@ -44,6 +75,15 @@ public struct Storefront: Codable, Hashable, Sendable {
     public let nightMarket: [NightMarketOffer]?
     public let nightMarketRemainingSeconds: Int?
     public let bundles: [FeaturedBundle]
+
+    public init(daily: [StoreOffer], dailyRemainingSeconds: Int, nightMarket: [NightMarketOffer]?,
+                nightMarketRemainingSeconds: Int?, bundles: [FeaturedBundle]) {
+        self.daily = daily
+        self.dailyRemainingSeconds = dailyRemainingSeconds
+        self.nightMarket = nightMarket
+        self.nightMarketRemainingSeconds = nightMarketRemainingSeconds
+        self.bundles = bundles
+    }
 
     public init(json data: Data) throws {
         let raw = try JSONDecoder().decode(RawStorefront.self, from: data)
@@ -86,6 +126,12 @@ public struct Wallet: Codable, Hashable, Sendable {
     public let vp: Int
     public let radianite: Int
     public let kingdomCredits: Int
+
+    public init(vp: Int, radianite: Int, kingdomCredits: Int) {
+        self.vp = vp
+        self.radianite = radianite
+        self.kingdomCredits = kingdomCredits
+    }
 
     public init(json data: Data) throws {
         let balances = try JSONDecoder().decode(RawWallet.self, from: data).Balances

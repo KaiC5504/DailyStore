@@ -16,7 +16,7 @@ settings:
     # Swift 5 language mode on purpose: strict concurrency turns first bring-up into a
     # wall of actor-isolation errors that cannot be iterated on without a Mac.
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "0.2.0"
     # A default only. CI overrides this per build from the command line; App Store
     # Connect rejects a build number it has already seen.
     CURRENT_PROJECT_VERSION: "1"
@@ -34,12 +34,21 @@ targets:
     platform: iOS
     sources:
       - path: Sources/App
+      - path: Sources/Shared
     dependencies:
       - package: ValorantCore
+      - target: DailyStoreWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kaichuan.dailystore
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    # Keychain sharing needs no App ID capability: App Store profiles already allow TEAMID.*.
+    # That is why the widget shares data through the keychain instead of an App Group.
+    entitlements:
+      path: Generated/DailyStore.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)com.kaichuan.dailystore.shared
     info:
       path: Generated/DailyStore-Info.plist
       properties:
@@ -53,6 +62,15 @@ targets:
         # "Missing Compliance".
         ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
+        KeychainAccessGroup: $(AppIdentifierPrefix)com.kaichuan.dailystore.shared
+        UIBackgroundModes:
+          - fetch
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.kaichuan.dailystore.refresh
+        CFBundleURLTypes:
+          - CFBundleURLName: com.kaichuan.dailystore
+            CFBundleURLSchemes:
+              - dailystore
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         # Upload validation demands all four for iPad regardless of device family.
@@ -62,6 +80,33 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
 
+  DailyStoreWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Sources/Widget
+      - path: Sources/Shared
+    dependencies:
+      - package: ValorantCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kaichuan.dailystore.widget
+    entitlements:
+      path: Generated/DailyStoreWidget.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)com.kaichuan.dailystore.shared
+    info:
+      path: Generated/DailyStoreWidget-Info.plist
+      properties:
+        CFBundleDisplayName: DailyStore
+        # Must match the app's or upload validation rejects the build.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        KeychainAccessGroup: $(AppIdentifierPrefix)com.kaichuan.dailystore.shared
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
 # Declared so `xcodebuild -scheme DailyStore` works without Xcode ever having opened the
 # project to autocreate one.
 schemes:
@@ -69,6 +114,7 @@ schemes:
     build:
       targets:
         DailyStore: all
+        DailyStoreWidget: all
     run:
       config: Debug
     archive:
