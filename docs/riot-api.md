@@ -48,6 +48,7 @@ current set is rejected (covers a crash between receiving and saving rotated coo
 | Client version | `GET https://valorant-api.com/v1/version` | `riotClientVersion`, sent as `X-Riot-ClientVersion` |
 | Storefront | `POST https://pd.{shard}.a.pvp.net/store/v3/storefront/{puuid}` body `{}` | v2 GET died Sept 2024. 400 without a body. |
 | Wallet | `GET https://pd.{shard}.a.pvp.net/store/v1/wallet/{puuid}` | |
+| Owned skins | `GET https://pd.{shard}.a.pvp.net/store/v1/entitlements/{puuid}/e7c63390-eda7-46e0-bb7a-a6abdacd2433` | `Entitlements[].ItemID` = every owned skin level (level 1 included). Failure is logged and ignored; the previous list is kept. |
 
 Game-server headers: `Authorization: Bearer`, `X-Riot-Entitlements-JWT`,
 `X-Riot-ClientPlatform` (fixed base64 PC descriptor in `RiotAPI.clientPlatform`),

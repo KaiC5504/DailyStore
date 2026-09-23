@@ -104,6 +104,7 @@ jobs:
           shoot 06-detail 12 -DemoTab today -DemoDetail 3
           shoot 07-wishlist 10 -DemoTab wishlist
           shoot 08-settings 8 -DemoTab settings
+          shoot 10-wishlist-owned 10 -DemoTab wishlist -DemoSearch Reaver
           shoot 09-widgets 8 -DemoWidgets YES
           ls -la shots
 

@@ -15,6 +15,7 @@ import Testing
         http.on("riot-geo.pas.si.riotgames.com", json: #"{"token": "t", "affinities": {"pbe": "na", "live": "ap"}}"#)
         http.on("/store/v3/storefront/", json: Fixtures.storefront)
         http.on("/store/v1/wallet/", json: Fixtures.wallet)
+        http.on("/store/v1/entitlements/", json: Fixtures.ownedSkins)
         return http
     }
 
@@ -35,6 +36,7 @@ import Testing
 
         #expect(snapshot.storefront.daily.count == 4)
         #expect(snapshot.wallet.vp == 4909)
+        #expect(snapshot.owned == ["lvl-1", "lvl-1b"])
         #expect(snapshot.clientVersion == "release-13.05-shipping-11-5350494")
         #expect(sessions.session?.cookies.values == ["ssid": "NEW_SSID", "clid": "NEW_CLID", "tdid": "DEVICE"])
         #expect(sessions.session?.fallback == original)
@@ -55,6 +57,24 @@ import Testing
         #expect(request.value(forHTTPHeaderField: "X-Riot-Entitlements-JWT") == "ENT")
         #expect(request.value(forHTTPHeaderField: "X-Riot-ClientVersion") == "release-13.05-shipping-11-5350494")
         #expect(request.value(forHTTPHeaderField: "X-Riot-ClientPlatform") == RiotAPI.clientPlatform)
+    }
+
+    @Test func ownedSkinsUseTheSkinEntitlementsEndpoint() async throws {
+        let http = riot(reauth: Self.success)
+        _ = try await StoreService(http: http, sessions: MemorySessions(RiotSession(cookies: RiotCookies(["ssid": "S"])))).fetch()
+
+        let request = try #require(http.requests(to: "/store/v1/entitlements/").first)
+        #expect(request.url?.absoluteString ==
+            "https://pd.ap.a.pvp.net/store/v1/entitlements/\(Fixtures.puuid)/e7c63390-eda7-46e0-bb7a-a6abdacd2433")
+        #expect(request.value(forHTTPHeaderField: "X-Riot-Entitlements-JWT") == "ENT")
+    }
+
+    @Test func failedOwnedCallStillReturnsTheStore() async throws {
+        let http = riot(reauth: Self.success)
+        http.on("/store/v1/entitlements/", status: 500, json: "{}")
+        let snapshot = try await StoreService(http: http, sessions: MemorySessions(RiotSession(cookies: RiotCookies(["ssid": "S"])))).fetch()
+        #expect(snapshot.storefront.daily.count == 4)
+        #expect(snapshot.owned == nil)
     }
 
     @Test func cachedPuuidAndShardSkipLookups() async throws {

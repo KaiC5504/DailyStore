@@ -25,6 +25,7 @@ enum Theme {
     static let fallbackTier = Color(white: 0.55)
     /// Items Riot sells that valorant-api.com hasn't published yet.
     static let newItem = Color(red: 0.95, green: 0.78, blue: 0.38)
+    static let owned = Color(red: 0.36, green: 0.9, blue: 0.7)
 }
 
 extension Color {

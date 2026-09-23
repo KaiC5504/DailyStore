@@ -45,10 +45,19 @@ enum DemoData {
         ),
         wallet: Wallet(vp: 4909, radianite: 0, kingdomCredits: 10000),
         clientVersion: "demo",
-        fetchedAt: Date()
+        fetchedAt: Date(),
+        // Kuronami Phantom and Sheriff (in the demo bundle), Reaver Phantom, Sheriff and Odin.
+        owned: ["0c989088-43ef-22ad-cc43-81a27bde2377", "72b3bacc-48ac-85f7-ec38-5ab629654486",
+                "4c18d802-409d-ec20-f630-d3abfcaa37c7", "4e4ebb8d-41d0-c326-595a-1f9b257e91fa",
+                "f5ce6297-4cd4-4b09-3931-5f8b20a4317d"]
     )
 
-    static let wishlist: Set<String> = ["722a1311-43e1-7c18-ce90-acac33e9c2ad", "636c1f83-44f7-6bc4-0b24-88a1beb66c2d"]
+    static let wishlist: Set<String> = ["722a1311-43e1-7c18-ce90-acac33e9c2ad", "636c1f83-44f7-6bc4-0b24-88a1beb66c2d",
+                                        "0c989088-43ef-22ad-cc43-81a27bde2377"]
+
+    static let historyDays: [String] = (0..<12).reversed().map {
+        StoreHistory.dayKey(Date().addingTimeInterval(TimeInterval(-$0 * 86_400)))
+    }
 
     private static func night(_ id: String, _ item: String, _ cost: Int, _ percent: Int) -> NightMarketOffer {
         NightMarketOffer(offer: StoreOffer(offerID: id, itemID: item, cost: cost),

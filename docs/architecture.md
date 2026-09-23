@@ -14,6 +14,7 @@ ios/
     Catalog.swift              valorant-api.com skins/tiers/bundles/buddies/sprays/cards/titles
     Schedule.swift             StoreClock (UTC reset maths), staleness, Wishlist.hits,
                                CompactCatalog (for the widget), Catalog.missingIDs
+    History.swift              StoreHistory: one compact entry per UTC day
     HTTPClient.swift           URLSession wrapper with redirects disabled
   Sources/Shared/              Compiled into BOTH the app and the widget
     SharedKeychain.swift       keychain access group, SharedState, KeychainSessionStore
@@ -42,9 +43,10 @@ LoginView (WKWebView) --cookies--> StoreService.signIn --> Keychain (session)
                                                    \--> fetch()
 fetch(): Keychain session -> reauth (cookies -> tokens, rotated cookies saved)
          -> entitlements + client version (+ puuid, shard once) -> storefront + wallet
-         -> StoreSnapshot
-StoreRefresher.current(): saved snapshot if not stale, else fetch -> SharedState.save
-         -> wishlist alert
+         + owned skins -> StoreSnapshot
+StoreRefresher.current(): saved snapshot if not stale, else fetch -> didFetch:
+         keep the last owned list if this fetch lacks one -> SharedState.save
+         -> record store history -> wishlist alert
 AppModel / widget / background task all go through StoreRefresher.
 ```
 
@@ -59,7 +61,8 @@ background refresh can read them while the phone is locked):
 | Account | Contents | Written by |
 | --- | --- | --- |
 | `riot-session` | `RiotSession`: current cookies, previous cookies (fallback), puuid, shard | StoreService |
-| `store-snapshot` | latest `StoreSnapshot`; `save` keeps whichever is newer | StoreRefresher |
+| `store-snapshot` | latest `StoreSnapshot` (includes `owned`, the owned skin level IDs); `save` keeps whichever is newer | StoreRefresher |
+| `store-history` | `StoreHistory`: every day's daily offers, Night Market, bundle IDs. About 1 KB a day. Kept on sign-out. No screen yet; Settings shows the day count | StoreRefresher, AppModel.start |
 | `wishlist` | `Set<String>` of lowercased skin level IDs | AppModel |
 | `compact-catalog` | `CompactCatalog`: name, tier colour, icon per skin for the widget | AppModel |
 | `alert-state` | wishlist alerts on/off, UTC day last alerted | Settings, Notifier |

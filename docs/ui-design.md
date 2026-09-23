@@ -48,13 +48,17 @@ the Pro Max. Wishlist, Settings and skin detail are allowed to scroll.
 - **Bundles:** one card per featured bundle (banner, name, price, time left). Missing
   from valorant-api.com: first skin art on a tier glow, name guessed from the shared
   prefix of the skin names (`Catalog.collectionName`), else "New bundle". Detail: banner,
-  price, item rows; unknown items get the gold "New item / DETAILS COMING SOON" style.
+  price, item rows; unknown items get the gold "New item / DETAILS COMING SOON" style;
+  owned skins say "WEAPON SKIN · OWNED" in `Theme.owned` (mint).
 - **Skin detail:** big tilting art or looping muted video, chroma swatches, level
-  upgrade list with videos, price, wishlist toggle. Unknown skin: "New skin / Details
-  coming soon".
+  upgrade list with videos, price, wishlist toggle. Owned and not wishlisted: a mint "In
+  your collection" pill replaces the toggle. Unknown skin: "New skin / Details coming soon".
 - **Wishlist:** search every skin (all words must match, no result cap, result count
-  shown), saved list, wishlist-hit banner. Tab badge = hits today.
-- **Settings:** account, region, reset time, refresh now, notification toggles,
+  and owned count shown), saved list, wishlist-hit banner. Tab badge = hits today.
+  Owned skins get a mint "OWNED" tag; unless already wishlisted, a seal replaces the
+  heart and the row dims. Owned skins never appear in the daily store or Night Market,
+  so the tag only lives here and in bundles.
+- **Settings:** account, region, reset time, store history day count, refresh now, notification toggles,
   Diagnostics log, widget previews (DEBUG), sign out, version.
 - **Login sheet:** Riot's page in a webview, with a hint to use the Passwords key above
   the keyboard.

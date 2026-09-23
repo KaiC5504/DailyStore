@@ -26,12 +26,15 @@ public struct StoreSnapshot: Codable, Sendable {
     public let wallet: Wallet
     public let clientVersion: String
     public let fetchedAt: Date
+    /// Owned skin level IDs, lowercased. Nil when that call failed or the snapshot predates it.
+    public var owned: Set<String>?
 
-    public init(storefront: Storefront, wallet: Wallet, clientVersion: String, fetchedAt: Date) {
+    public init(storefront: Storefront, wallet: Wallet, clientVersion: String, fetchedAt: Date, owned: Set<String>? = nil) {
         self.storefront = storefront
         self.wallet = wallet
         self.clientVersion = clientVersion
         self.fetchedAt = fetchedAt
+        self.owned = owned
     }
 }
 
@@ -85,14 +88,26 @@ public actor StoreService {
 
         async let storefront = api.storefront(ctx)
         async let wallet = api.wallet(ctx)
+        async let owned = ownedSkins(ctx)
         let snapshot = StoreSnapshot(
             storefront: try await storefront,
             wallet: try await wallet,
             clientVersion: ctx.clientVersion,
-            fetchedAt: Date()
+            fetchedAt: Date(),
+            owned: await owned
         )
-        log("Store OK: \(snapshot.storefront.daily.count) daily offers, night market \(snapshot.storefront.nightMarket == nil ? "off" : "on")")
+        log("Store OK: \(snapshot.storefront.daily.count) daily offers, night market \(snapshot.storefront.nightMarket == nil ? "off" : "on"), \(snapshot.owned.map { "\($0.count) owned skins" } ?? "owned skins unavailable")")
         return snapshot
+    }
+
+    /// Only the wishlist uses this, so a failure here shouldn't cost the whole store.
+    private func ownedSkins(_ ctx: RiotAPI.Context) async -> Set<String>? {
+        do {
+            return try await api.ownedSkinLevels(ctx)
+        } catch {
+            log("Owned skins: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     private func reauth(_ session: inout RiotSession) async throws -> AuthTokens {

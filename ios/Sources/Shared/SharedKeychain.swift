@@ -107,6 +107,7 @@ enum Account {
     static let wishlist = "wishlist"
     static let compactCatalog = "compact-catalog"
     static let alerts = "alert-state"
+    static let history = "store-history"
 }
 
 /// The Riot session is as good as a password with 2FA already passed, so it only ever lives here.
@@ -138,6 +139,16 @@ enum SharedState {
     }
 
     static func clearSnapshot() { try? keychain.remove(Account.snapshot) }
+
+    /// Written by whoever fetches, so a day the app isn't opened still gets recorded by the widget.
+    /// Survives sign-out on purpose: it holds no account data beyond what the store offered.
+    static var history: StoreHistory { keychain.value(StoreHistory.self, Account.history) ?? StoreHistory() }
+
+    static func recordHistory(_ snapshot: StoreSnapshot) {
+        var history = self.history
+        guard history.record(snapshot) else { return }
+        try? keychain.setValue(history, Account.history)
+    }
 
     static var wishlist: Set<String> {
         get { keychain.value(Set<String>.self, Account.wishlist) ?? [] }

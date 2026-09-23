@@ -145,6 +145,17 @@ struct WishlistHeart: View {
     }
 }
 
+/// Takes the heart's place for skins already in the collection; they can't show up in the store.
+struct OwnedBadge: View {
+    var body: some View {
+        Image(systemName: "checkmark.seal.fill")
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(Theme.owned)
+            .padding(9)
+            .glassEffect(.regular.tint(Theme.owned.opacity(0.18)), in: .circle)
+    }
+}
+
 /// Muted, looping, control-free video for skin previews.
 struct LoopingVideo: UIViewRepresentable {
     let url: URL

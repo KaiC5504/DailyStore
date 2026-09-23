@@ -161,9 +161,22 @@ struct SkinDetailView: View {
         }
     }
 
-    private var wishlistButton: some View {
+    @ViewBuilder private var wishlistButton: some View {
         let on = model.isWishlisted(route.levelID)
-        return Button {
+        if model.isOwned(route.levelID) && !on {
+            Label("In your collection", systemImage: "checkmark.seal.fill")
+                .font(.headline)
+                .foregroundStyle(Theme.owned)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .glassEffect(.regular.tint(Theme.owned.opacity(0.15)), in: .capsule)
+        } else {
+            wishlistToggle(on)
+        }
+    }
+
+    private func wishlistToggle(_ on: Bool) -> some View {
+        Button {
             withAnimation(.bouncy) { model.toggleWishlist(route.levelID) }
         } label: {
             Label(on ? "On your wishlist" : "Add to wishlist", systemImage: on ? "heart.fill" : "heart")

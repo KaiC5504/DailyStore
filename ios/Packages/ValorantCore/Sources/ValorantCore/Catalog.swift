@@ -42,10 +42,12 @@ public struct ContentTier: Codable, Hashable, Sendable {
 public enum ItemKind: String, Codable, Sendable {
     case skin, buddy, spray, card, title, flex, other
 
+    public static let skinTypeID = "e7c63390-eda7-46e0-bb7a-a6abdacd2433"
+
     /// Riot's ItemTypeID values as they appear in storefront rewards.
     public init(typeID: String) {
         switch typeID.lowercased() {
-        case "e7c63390-eda7-46e0-bb7a-a6abdacd2433": self = .skin
+        case Self.skinTypeID: self = .skin
         case "dd3bf334-87f3-40bd-b043-682a57a8dc3a": self = .buddy
         case "d5f120f8-ff8c-4aac-92ea-f2b5acbe9475": self = .spray
         case "3f296c07-64c3-494c-923b-fe692a4fa1bd": self = .card

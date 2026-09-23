@@ -21,6 +21,7 @@ final class AppModel {
     private(set) var wishlist: Set<String> = []
     private(set) var revealed: Set<String> = []
     private(set) var shard: String?
+    private(set) var historyDays: [String] = []
     var showLogin = false
 
     let isDemo: Bool
@@ -50,6 +51,7 @@ final class AppModel {
         if isDemo {
             snapshot = DemoData.snapshot
             wishlist = DemoData.wishlist
+            historyDays = DemoData.historyDays
             phase = .ready
             await loadCatalogIfNeeded(for: DemoData.snapshot)
             return
@@ -59,6 +61,9 @@ final class AppModel {
         FileCache<StoreSnapshot>(name: "snapshot.json").clear()
         wishlist = SharedState.wishlist
         snapshot = SharedState.snapshot
+        // Picks up a store saved before history existed, or by a widget that fetched while the app was closed.
+        if let snapshot { SharedState.recordHistory(snapshot) }
+        historyDays = SharedState.history.days.map(\.day)
         shard = (try? KeychainSessionStore().load())?.shard
         guard await service.isSignedIn else {
             phase = .signedOut
@@ -100,9 +105,7 @@ final class AppModel {
         showLogin = false
         phase = .loading
         await run { [service] in
-            let snapshot = try await service.signIn(cookies: cookies)
-            await StoreRefresher.didFetch(snapshot)
-            return snapshot
+            await StoreRefresher.didFetch(try await service.signIn(cookies: cookies))
         }
     }
 
@@ -124,6 +127,11 @@ final class AppModel {
         SharedState.wishlist = wishlist
         StoreRefresher.reloadWidgets()
     }
+
+    /// Empty until the first fetch that includes the owned list.
+    var owned: Set<String> { snapshot?.owned ?? [] }
+
+    func isOwned(_ levelID: String) -> Bool { owned.contains(levelID.lowercased()) }
 
     var wishlistHits: [WishlistHit] {
         snapshot.map { Wishlist.hits(in: $0, wishlist: wishlist) } ?? []
@@ -164,6 +172,7 @@ final class AppModel {
             let fresh = try await work()
             snapshot = fresh
             phase = .ready
+            if !isDemo { historyDays = SharedState.history.days.map(\.day) }
             shard = (try? KeychainSessionStore().load())?.shard
             armResetTimer()
             StoreRefresher.reloadWidgets()

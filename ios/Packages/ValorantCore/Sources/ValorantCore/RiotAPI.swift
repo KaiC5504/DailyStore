@@ -88,6 +88,19 @@ public struct RiotAPI: Sendable {
         try Wallet(json: try await data("Wallet", game("https://pd.\(ctx.shard).a.pvp.net/store/v1/wallet/\(ctx.puuid)", ctx)))
     }
 
+    /// Every skin level the account owns, lowercased. Owning a skin includes its first level,
+    /// which is the ID the catalog and wishlist use.
+    public func ownedSkinLevels(_ ctx: Context) async throws -> Set<String> {
+        let url = "https://pd.\(ctx.shard).a.pvp.net/store/v1/entitlements/\(ctx.puuid)/\(ItemKind.skinTypeID)"
+        let raw = try JSONDecoder().decode(RawOwned.self, from: try await data("Owned skins", game(url, ctx)))
+        return Set((raw.Entitlements ?? []).map { $0.ItemID.lowercased() })
+    }
+
+    private struct RawOwned: Decodable {
+        struct Entitlement: Decodable { let ItemID: String }
+        let Entitlements: [Entitlement]?
+    }
+
     private func bearer(_ url: String, _ token: String, method: String = "GET") -> URLRequest {
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = method

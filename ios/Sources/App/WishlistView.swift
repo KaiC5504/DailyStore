@@ -3,7 +3,11 @@ import ValorantCore
 
 struct WishlistView: View {
     @Environment(AppModel.self) private var model
+    #if DEBUG
+    @State private var query = UserDefaults.standard.string(forKey: "DemoSearch") ?? ""
+    #else
     @State private var query = ""
+    #endif
 
     private var results: [SkinInfo] {
         guard let catalog = model.catalog else { return [] }
@@ -15,6 +19,12 @@ struct WishlistView: View {
                 return words.allSatisfy { name.contains($0) }
             }
             .sorted { $0.name < $1.name }
+    }
+
+    private var resultsSummary: String {
+        let owned = results.filter { model.isOwned($0.levelID) }.count
+        let count = results.count == 1 ? "1 skin" : "\(results.count) skins"
+        return owned == 0 ? count : "\(count) · \(owned) owned"
     }
 
     private var saved: [SkinInfo] {
@@ -40,7 +50,7 @@ struct WishlistView: View {
                         ForEach(saved, id: \.levelID) { skin in row(skin) }
                     } else {
                         if !results.isEmpty {
-                            Text(results.count == 1 ? "1 skin" : "\(results.count) skins")
+                            Text(resultsSummary)
                                 .font(Theme.label(10)).tracking(1.2)
                                 .foregroundStyle(Theme.textFaint)
                                 .padding(.top, 8)
@@ -66,6 +76,7 @@ struct WishlistView: View {
         let on = model.isWishlisted(skin.levelID)
         let color = model.catalog.tierColor(skin.levelID)
         let inStore = model.wishlistHits.contains { $0.levelID == skin.levelID }
+        let owned = model.isOwned(skin.levelID)
         return HStack(spacing: 12) {
             NavigationLink(value: SkinRoute(levelID: skin.levelID, price: nil)) {
                 HStack(spacing: 12) {
@@ -79,22 +90,31 @@ struct WishlistView: View {
                             if inStore {
                                 Text("IN STORE").font(Theme.label(9)).foregroundStyle(Theme.accent)
                             }
+                            if owned {
+                                Text("OWNED").font(Theme.label(9)).foregroundStyle(Theme.owned)
+                            }
                         }
                     }
                     Spacer(minLength: 0)
                 }
             }
             .buttonStyle(.plain)
-            Button {
-                withAnimation(.bouncy) { model.toggleWishlist(skin.levelID) }
-            } label: {
-                WishlistHeart(isOn: on)
+            // A skin bought after it was wishlisted keeps its heart so it can still be removed.
+            if owned && !on {
+                OwnedBadge()
+            } else {
+                Button {
+                    withAnimation(.bouncy) { model.toggleWishlist(skin.levelID) }
+                } label: {
+                    WishlistHeart(isOn: on)
+                }
+                .buttonStyle(.plain)
+                .sensoryFeedback(.selection, trigger: on)
             }
-            .buttonStyle(.plain)
-            .sensoryFeedback(.selection, trigger: on)
         }
         .foregroundStyle(.white)
         .padding(10)
+        .opacity(owned && !on ? 0.72 : 1)
         .glassEffect(.regular.tint(inStore ? Theme.accent.opacity(0.2) : color.opacity(0.06)),
                      in: .rect(cornerRadius: Theme.chipRadius + 4))
     }

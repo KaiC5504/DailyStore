@@ -37,7 +37,7 @@ The owner has authorised steps 1-5 without asking each time. Chain commands with
 
 Screenshot names: `01-first-launch` (real, signed-out), then demo mode `02-today`,
 `03-night-hidden`, `04-night-revealed`, `05-bundles`, `06-detail`, `07-wishlist`,
-`08-settings`, `09-widgets`.
+`08-settings`, `09-widgets`, `10-wishlist-owned` (search "Reaver", owned tags).
 
 ## Local tests
 
@@ -45,7 +45,7 @@ Screenshot names: `01-first-launch` (real, signed-out), then demo mode `02-today
 cd ios/Packages/ValorantCore && swift test
 ```
 
-37 tests as of build 7 (Swift Testing, `@Test`). Fixtures are in
+45 tests as of build 8 (Swift Testing, `@Test`). Fixtures are in
 `Tests/ValorantCoreTests/Support.swift`. Anything that can live in ValorantCore should,
 because that is the only code testable without CI. Reset/time maths, parsing, caching
 decisions and catalog lookups all have tests; add one for new logic there.
@@ -62,6 +62,7 @@ Debug builds read launch arguments so CI can screenshot without a Riot account:
 - `-DemoTab today|night|bundles|wishlist|settings`
 - `-DemoReveal YES`: Night Market cards start revealed.
 - `-DemoDetail N`: open the Nth daily skin's detail page.
+- `-DemoSearch text`: prefill the wishlist search.
 - `-DemoWidgets YES`: show the widget gallery instead of the app.
 
 All of it is `#if DEBUG`; release builds never see it. New screens should get a demo

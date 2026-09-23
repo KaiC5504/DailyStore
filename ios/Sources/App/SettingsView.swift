@@ -14,6 +14,7 @@ struct SettingsView: View {
                     LabeledContent("Riot account", value: model.phase == .signedOut ? "Signed out" : "Signed in")
                     if let shard = model.shard { LabeledContent("Region", value: shard.uppercased()) }
                     LabeledContent("Store resets", value: "\(StoreClock.localResetTime()) your time")
+                    LabeledContent("Store history", value: historySummary)
                     Button("Refresh store now", systemImage: "arrow.clockwise") {
                         Task { await model.refresh(force: true) }
                     }
@@ -68,6 +69,14 @@ struct SettingsView: View {
                 if on { Task { _ = await Notifier.requestPermission() } }
             }
         }
+    }
+}
+
+extension SettingsView {
+    private var historySummary: String {
+        let days = model.historyDays
+        guard let first = days.first else { return "Not started" }
+        return days.count == 1 ? "1 day, since \(first)" : "\(days.count) days, since \(first)"
     }
 }
 

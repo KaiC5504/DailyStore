@@ -148,16 +148,16 @@ struct BundleDetailView: View {
         if item.kind == .skin {
             NavigationLink(value: SkinRoute(levelID: item.itemID, price: item.discountedPrice, original: item.basePrice)) {
                 rowBody(item, name: model.catalog?.skin(item.itemID)?.name, icon: model.catalog?.skin(item.itemID)?.icon,
-                        color: model.catalog.tierColor(item.itemID))
+                        color: model.catalog.tierColor(item.itemID), owned: model.isOwned(item.itemID))
             }
             .buttonStyle(PressableStyle())
         } else {
             let info = model.catalog?.item(item.itemID)
-            rowBody(item, name: info?.name, icon: info?.icon, color: Theme.fallbackTier)
+            rowBody(item, name: info?.name, icon: info?.icon, color: Theme.fallbackTier, owned: false)
         }
     }
 
-    private func rowBody(_ item: BundleItem, name: String?, icon: URL?, color: Color) -> some View {
+    private func rowBody(_ item: BundleItem, name: String?, icon: URL?, color: Color, owned: Bool) -> some View {
         let isNew = name == nil
         let color = isNew ? Theme.newItem : color
         return HStack(spacing: 14) {
@@ -177,9 +177,9 @@ struct BundleDetailView: View {
                 Text(name ?? "New item")
                     .font(.subheadline.weight(.bold))
                     .lineLimit(2)
-                Text(isNew ? "\(kindLabel(item.kind)) · DETAILS COMING SOON" : kindLabel(item.kind))
+                Text(isNew ? "\(kindLabel(item.kind)) · DETAILS COMING SOON" : owned ? "\(kindLabel(item.kind)) · OWNED" : kindLabel(item.kind))
                     .font(Theme.label(9)).tracking(1.2)
-                    .foregroundStyle(isNew ? Theme.newItem : Theme.textFaint)
+                    .foregroundStyle(isNew ? Theme.newItem : owned ? Theme.owned : Theme.textFaint)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }

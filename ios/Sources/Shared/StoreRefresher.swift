@@ -15,14 +15,18 @@ enum StoreRefresher {
     /// Returns the saved snapshot when it is still today's, otherwise fetches.
     static func current(using service: StoreService, force: Bool = false) async throws -> StoreSnapshot {
         if !force, let saved = SharedState.snapshot, !saved.isStale() { return saved }
-        let fresh = try await service.fetch()
-        await didFetch(fresh)
-        return fresh
+        return await didFetch(try await service.fetch())
     }
 
-    static func didFetch(_ snapshot: StoreSnapshot) async {
+    @discardableResult
+    static func didFetch(_ snapshot: StoreSnapshot) async -> StoreSnapshot {
+        var snapshot = snapshot
+        // The owned list barely changes, so a failed call keeps yesterday's rather than dropping the tags.
+        if snapshot.owned == nil { snapshot.owned = SharedState.snapshot?.owned }
         SharedState.save(snapshot)
+        SharedState.recordHistory(snapshot)
         await Notifier.alertWishlistIfNeeded(snapshot)
+        return snapshot
     }
 
     static func reloadWidgets() {

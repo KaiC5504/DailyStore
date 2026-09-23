@@ -20,7 +20,10 @@ Riot's terms list store checkers as unapproved third-party tools, so keep it per
 - Skin detail: chroma (colour variant) picker, level upgrade videos, drag-to-tilt art,
   wishlist toggle.
 - Wishlist: search every skin, heart it; badge and banner when one is in today's store or
-  Night Market; notification.
+  Night Market; notification. Owned skins are tagged (owned skins never show up in the
+  store, so the tag matters in search and bundles only).
+- Store history: every day's store is recorded on the phone from build 8. No screen yet;
+  it exists so a future "last seen" feature has data.
 - Widget: home screen small/medium/large, lock screen rectangular/inline/circular. Fetches
   the new store itself after the reset.
 - Notifications: daily "New store is up" at the reset (local time), wishlist alert.
@@ -29,7 +32,7 @@ Riot's terms list store checkers as unapproved third-party tools, so keep it per
 - Settings: notification toggles, force refresh, Diagnostics log (no secrets), sign out.
 
 Out of scope unless the owner asks: multiple accounts, Android, App Store release,
-purchasing, match history/stats, accessory store.
+purchasing, accessory store. Match history is planned next (see ideas below).
 
 ## Status
 
@@ -58,6 +61,7 @@ Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is Codemag
 | 5 | 0.2.0 | M2 + M3: full UI, widget, wishlist, notifications, once-a-day caching |
 | 6 | 0.2.0 | Today/Night Market/Bundles fit on one screen; catalog refetches when the store has unknown items; wishlist search no longer capped at 60 |
 | 7 | 0.2.0 | Items valorant-api.com hasn't listed show as "New item, details coming soon"; catalog check on every app open |
+| 8 | 0.2.0 | Owned skins tagged in wishlist search, skin detail and bundles; store history recorded daily (no screen) |
 
 ## Known limitations
 
@@ -70,6 +74,8 @@ Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is Codemag
   which iOS schedules at its discretion, so they can arrive late.
 - The widget does not download the catalog itself; it uses the compact copy the app last
   saved. New names appear in the widget after the app has been opened.
+- The owned list comes with the once-a-day store fetch. A skin bought today shows as
+  owned after the next reset, or straight away after a pull-to-refresh.
 - Riot has blocked third-party clients by User-Agent before. If every request suddenly
   fails with 403, change `RiotAPI.userAgent` first.
 
@@ -77,8 +83,10 @@ Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is Codemag
 
 Recorded so a future session doesn't lose them. Each needs the owner's go-ahead.
 
+- Match history and match details in the app. The owner wants this next (new scope,
+  approved in principle on 2026-09-23, not planned yet).
 - Accessory store (Kingdom Credits items; `AccessoryStore` is already in the response).
-- Store history: keep past daily stores and show "last seen" dates per skin.
+- A screen for store history ("last seen" per skin, calendar). Data is being recorded.
 - Price-drop / Night Market wishlist hits highlighted in the widget.
 - Interactive widget (App Intents) to open a specific skin.
 - Flip the repo to private once development settles (see `development.md`).
