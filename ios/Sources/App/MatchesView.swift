@@ -352,7 +352,7 @@ private struct StatTile<Icon: View>: View {
                 .font(Theme.display(18))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text("\(line.games) GAMES")
+            Text(line.games == 1 ? "1 GAME" : "\(line.games) GAMES")
                 .font(Theme.label(8)).tracking(1)
                 .foregroundStyle(Theme.textDim)
             HStack(spacing: 6) {
@@ -360,6 +360,8 @@ private struct StatTile<Icon: View>: View {
                 Text(line.kd.formatted(.number.precision(.fractionLength(2))) + " KD").foregroundStyle(Theme.textDim)
             }
             .font(.system(size: 12, weight: .heavy).monospacedDigit())
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
         }
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 118, alignment: .bottomLeading)
