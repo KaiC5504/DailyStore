@@ -1,0 +1,84 @@
+# Overview
+
+## What it is
+
+A personal iPhone app for the owner (KaiC, VALORANT account on the Asia-Pacific shard
+`ap`, lives in Malaysia/Australia) to check the VALORANT store. Apps like ValTracker make
+you log in every day because they keep only Riot's one-hour access token. DailyStore keeps
+Riot's remember-me cookies in the Keychain and silently re-authenticates with them, so
+the owner logs in once and the session keeps sliding forward (see `riot-api.md`).
+
+Distribution is TestFlight internal testing only. It is not meant for the App Store:
+Riot's terms list store checkers as unapproved third-party tools, so keep it personal.
+
+## Scope (all shipped)
+
+- Daily store: the four skins with tier, price, art; reset countdown in local time.
+- Wallet: VP, Radianite, Kingdom Credits.
+- Night Market: flip-to-reveal cards with discount and price, end countdown.
+- Featured bundles: banner, name, price, contents list with per-item prices.
+- Skin detail: chroma (colour variant) picker, level upgrade videos, drag-to-tilt art,
+  wishlist toggle.
+- Wishlist: search every skin, heart it; badge and banner when one is in today's store or
+  Night Market; notification.
+- Widget: home screen small/medium/large, lock screen rectangular/inline/circular. Fetches
+  the new store itself after the reset.
+- Notifications: daily "New store is up" at the reset (local time), wishlist alert.
+- Background refresh after the reset.
+- Store caching: Riot is asked at most once per UTC day, plus manual pull-to-refresh.
+- Settings: notification toggles, force refresh, Diagnostics log (no secrets), sign out.
+
+Out of scope unless the owner asks: multiple accounts, Android, App Store release,
+purchasing, match history/stats, accessory store.
+
+## Status
+
+Milestones from the original plan (`~/.claude/plans/i-want-to-make-cryptic-kurzweil.md`
+on the owner's machine):
+
+| Milestone | Content | State |
+| --- | --- | --- |
+| M0 | `tools/probe.py`, proved cookie reauth + storefront v3 on the real account | Done |
+| M1 | ValorantCore package + tests, webview login, Keychain session, plain store list | Done (build 3) |
+| M2 | Liquid Glass UI, Night Market, bundles, skin detail, wallet | Done (build 5) |
+| M3 | Widget, wishlist, notifications, background refresh | Done (build 5) |
+
+The plan's "credential auto-fill with Face ID via JavaScript" was dropped; iOS Passwords
+AutoFill covers it instead. See `decisions.md`.
+
+## Build history
+
+Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is Codemagic's.
+
+| Build | Version | What changed |
+| --- | --- | --- |
+| 1-2 | 0.1.0 | Pipeline smoke test (stub app) |
+| 3 | 0.1.0 | M1: login, Keychain cookies, plain store list |
+| 4 | 0.2.0 | Failed: widget had no provisioning profile |
+| 5 | 0.2.0 | M2 + M3: full UI, widget, wishlist, notifications, once-a-day caching |
+| 6 | 0.2.0 | Today/Night Market/Bundles fit on one screen; catalog refetches when the store has unknown items; wishlist search no longer capped at 60 |
+| 7 | 0.2.0 | Items valorant-api.com hasn't listed show as "New item, details coming soon"; catalog check on every app open |
+
+## Known limitations
+
+- Names and art come from valorant-api.com, a community mirror. New content (e.g. the
+  Champions 2026 bundle on 2026-09-23) shows as "New item" until the site adds it,
+  usually a day or two. Nothing in Riot's store response carries names or images.
+- The Riot session lasts as long as something reauths at least once every 30 days. If the
+  phone isn't used for a month, the owner signs in again.
+- Wishlist alerts depend on the widget or background refresh running after the reset,
+  which iOS schedules at its discretion, so they can arrive late.
+- The widget does not download the catalog itself; it uses the compact copy the app last
+  saved. New names appear in the widget after the app has been opened.
+- Riot has blocked third-party clients by User-Agent before. If every request suddenly
+  fails with 403, change `RiotAPI.userAgent` first.
+
+## Ideas for later (not started, not approved)
+
+Recorded so a future session doesn't lose them. Each needs the owner's go-ahead.
+
+- Accessory store (Kingdom Credits items; `AccessoryStore` is already in the response).
+- Store history: keep past daily stores and show "last seen" dates per skin.
+- Price-drop / Night Market wishlist hits highlighted in the widget.
+- Interactive widget (App Intents) to open a specific skin.
+- Flip the repo to private once development settles (see `development.md`).

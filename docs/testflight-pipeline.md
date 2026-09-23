@@ -13,9 +13,8 @@ tests only on TestFlight, so a change is not verified until it is on the phone.
 | `codemagic.yaml` | The signed build. Generates the Xcode project, creates signing files, builds the IPA, uploads to App Store Connect. |
 | `scripts/codemagic.py` | Start and watch Codemagic builds from Windows. Token comes from `~/.codemagic-token`, never from the repo. |
 | `ios/project.yml` | XcodeGen spec. The `.xcodeproj` is generated on the build machine and never committed. |
-| `ios/Sources/App/DailyStoreApp.swift` | Smoke-test stub. Replace with the real app. |
-| `ios/Sources/App/Assets.xcassets/AppIcon.appiconset/icon-1024.png` | Placeholder icon from `scripts/make_icon.py`. Uploads without a 1024 icon are rejected. |
-| `.github/workflows/ios-compile.yml` | Free compile check: builds for the simulator, launches, screenshots. Runs on every push that touches `ios/`. |
+| `ios/Sources/App/Assets.xcassets/AppIcon.appiconset/icon-1024.png` | App icon (fanned glass cards) from `scripts/make_icon.py`. Uploads without a 1024 icon are rejected. |
+| `.github/workflows/ios-compile.yml` | Free compile check: core tests, simulator build, launch, nine demo-mode screenshots. Runs on every branch for pushes that touch `ios/`. |
 
 Identity used everywhere: app name `DailyStore`, scheme `DailyStore`, bundle id
 `com.kaichuan.dailystore`. Changing any of these means changing `codemagic.yaml`,
@@ -90,7 +89,11 @@ Claude does:
 
 ## Shipping a build after that
 
+Iterate on `dev` first (see `development.md`); main only gets fast-forwarded once the
+Actions run on `dev` is green and the screenshots look right.
+
 ```
+git checkout main && git merge --ff-only dev
 git push origin main
 gh run list --branch main --limit 1        # then gh run watch <id> --exit-status
 python scripts/codemagic.py status         # nothing already running?
