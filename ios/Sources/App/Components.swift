@@ -200,3 +200,53 @@ extension Optional where Wrapped == Catalog {
         self?.tierColor(levelID) ?? Theme.fallbackTier
     }
 }
+
+/// A tab sized to exactly one screen. It stays in a ScrollView so pull-to-refresh keeps
+/// working, and only scrolls on phones shorter than `minHeight`.
+struct FitPage<Content: View>: View {
+    var minHeight: CGFloat = 0
+    let refresh: () async -> Void
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        GeometryReader { proxy in
+            ScrollView {
+                content()
+                    .padding(.horizontal, Theme.gutter)
+                    .padding(.top, 4)
+                    .padding(.bottom, 10)
+                    .frame(width: proxy.size.width, height: max(proxy.size.height, minHeight), alignment: .top)
+            }
+            .scrollIndicators(.hidden)
+            .refreshable { await refresh() }
+        }
+    }
+}
+
+/// Rows that split whatever height the page leaves them, which LazyVGrid's fixed rows can't do.
+struct FillGrid<Item, Cell: View>: View {
+    let items: [Item]
+    var columns = 2
+    var spacing: CGFloat = 12
+    @ViewBuilder let cell: (Int, Item) -> Cell
+
+    private var rows: [[Int]] {
+        stride(from: 0, to: items.count, by: columns).map { Array($0 ..< min($0 + columns, items.count)) }
+    }
+
+    var body: some View {
+        VStack(spacing: spacing) {
+            ForEach(rows, id: \.self) { row in
+                HStack(spacing: spacing) {
+                    ForEach(row, id: \.self) { index in
+                        cell(index, items[index])
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    ForEach(row.count ..< columns, id: \.self) { _ in
+                        Color.clear.frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+    }
+}

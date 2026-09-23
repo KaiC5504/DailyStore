@@ -5,14 +5,12 @@ struct NightMarketView: View {
     @Environment(AppModel.self) private var model
     @Namespace private var zoom
 
-    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
-
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+            FitPage(minHeight: 700, refresh: { await model.refresh(force: true) }) {
+                VStack(alignment: .leading, spacing: 12) {
                     ScreenTitle(kicker: "Limited discounts", title: "Night Market")
-                        .padding(.top, 12)
+                        .padding(.top, 8)
                     if let snapshot = model.snapshot, let offers = snapshot.storefront.nightMarket {
                         HStack {
                             if let ends = snapshot.nightMarketEndsAt {
@@ -31,22 +29,17 @@ struct NightMarketView: View {
                                 .font(.footnote.weight(.bold))
                             }
                         }
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(offers, id: \.offer.offerID) { offer in
-                                NightCard(offer: offer, zoom: zoom)
-                            }
+                        FillGrid(items: offers) { _, offer in
+                            NightCard(offer: offer, zoom: zoom)
                         }
+                        .frame(maxHeight: .infinity)
                     } else {
                         ContentUnavailableView("No Night Market right now", systemImage: "moon.zzz",
                                                description: Text("It shows up here the moment Riot opens one."))
-                            .padding(.top, 60)
+                            .frame(maxHeight: .infinity)
                     }
                 }
-                .padding(.horizontal, Theme.gutter)
-                .padding(.bottom, 40)
             }
-            .scrollIndicators(.hidden)
-            .refreshable { await model.refresh(force: true) }
             .background(AmbientBackground(tint: Theme.violet, secondary: Theme.accent))
             .navigationDestination(for: SkinRoute.self) { route in
                 SkinDetailView(route: route)
@@ -74,7 +67,7 @@ private struct NightCard: View {
                 .opacity(revealed ? 0 : 1)
                 .rotation3DEffect(.degrees(revealed ? 180 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.45)
         }
-        .frame(height: 210)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .sensoryFeedback(.impact(weight: .medium), trigger: revealed)
     }
 
@@ -93,6 +86,7 @@ private struct NightCard: View {
                 }
                 .foregroundStyle(.white.opacity(0.9))
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .glassEffect(.regular.interactive(), in: .rect(cornerRadius: Theme.cardRadius))
         }
         .buttonStyle(PressableStyle())
@@ -123,6 +117,7 @@ private struct NightCard: View {
                          font: .system(size: 15, weight: .heavy).monospacedDigit())
             }
             .padding(14)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .background(
                 RadialGradient(colors: [color.opacity(0.45), .clear], center: .center, startRadius: 4, endRadius: 140)
             )

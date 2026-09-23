@@ -91,4 +91,26 @@ import Testing
         #expect(compact.color("lvl-1") == "fad66333")
         #expect(compact.name("lvl-1") == "Araxys Sheriff")
     }
+
+    @Test func missingIDsCatchBundlesAndSkinsReleasedMidPatch() throws {
+        let catalog = Catalog(clientVersion: "v", skins: try Catalog.parseSkins(Data(Fixtures.skins.utf8)),
+                              tiers: [:], bundles: try Catalog.parseBundles(Data(Fixtures.bundles.utf8)))
+        let knownBundle = try #require(catalog.bundles.keys.first)
+        let skin = "e7c63390-eda7-46e0-bb7a-a6abdacd2433"
+        let store = Storefront(
+            daily: [StoreOffer(offerID: "o1", itemID: "LVL-1", cost: 1775), StoreOffer(offerID: "o2", itemID: "new-skin", cost: 1775)],
+            dailyRemainingSeconds: 100,
+            nightMarket: nil, nightMarketRemainingSeconds: nil,
+            bundles: [
+                FeaturedBundle(id: "b1", dataAssetID: knownBundle, items: [], baseCost: nil, discountedCost: nil, remainingSeconds: 100),
+                FeaturedBundle(id: "b2", dataAssetID: "NEW-BUNDLE", items: [
+                    BundleItem(itemTypeID: skin, itemID: "new-bundle-skin", basePrice: 2175, discountedPrice: 2175),
+                    BundleItem(itemTypeID: "03a572de-4234-31ed-d344-ababa488f981", itemID: "some-flex", basePrice: 0, discountedPrice: 0),
+                ], baseCost: nil, discountedCost: nil, remainingSeconds: 100),
+            ]
+        )
+        let snapshot = StoreSnapshot(storefront: store, wallet: Wallet(vp: 0, radianite: 0, kingdomCredits: 0),
+                                     clientVersion: "v", fetchedAt: Date())
+        #expect(catalog.missingIDs(in: snapshot) == ["new-skin", "new-bundle", "new-bundle-skin"])
+    }
 }

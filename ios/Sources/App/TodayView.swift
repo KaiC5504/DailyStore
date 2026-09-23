@@ -15,34 +15,30 @@ struct TodayView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+            FitPage(minHeight: 660, refresh: { await model.refresh(force: true) }) {
+                VStack(alignment: .leading, spacing: 12) {
                     header
                     StatusBanner()
                     if let snapshot = model.snapshot {
                         if !model.wishlistHits.isEmpty { WishlistHitBanner(hits: model.wishlistHits) }
-                        ForEach(Array(snapshot.storefront.daily.enumerated()), id: \.element.offerID) { index, offer in
+                        FillGrid(items: snapshot.storefront.daily) { index, offer in
                             NavigationLink(value: SkinRoute(levelID: offer.itemID, price: offer.cost)) {
                                 SkinCard(offer: offer, index: index)
                                     .matchedTransitionSource(id: offer.itemID, in: zoom)
                             }
                             .buttonStyle(PressableStyle())
                         }
-                        if let night = snapshot.storefront.nightMarket, let ends = snapshot.nightMarketEndsAt {
-                            NightMarketTeaser(count: night.count, ends: ends, action: openNightMarket)
+                        .frame(maxHeight: .infinity)
+                        if snapshot.storefront.nightMarket != nil, let ends = snapshot.nightMarketEndsAt {
+                            NightMarketTeaser(ends: ends, action: openNightMarket)
                         }
                         Text("Updated \(snapshot.fetchedAt.formatted(date: .abbreviated, time: .shortened)) · pull to refresh")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(Theme.textFaint)
                             .frame(maxWidth: .infinity)
-                            .padding(.top, 6)
                     }
                 }
-                .padding(.horizontal, Theme.gutter)
-                .padding(.bottom, 40)
             }
-            .scrollIndicators(.hidden)
-            .refreshable { await model.refresh(force: true) }
             .background(AmbientBackground(tint: topTint))
             .navigationDestination(for: SkinRoute.self) { route in
                 SkinDetailView(route: route)
@@ -66,8 +62,11 @@ struct TodayView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ScreenTitle(kicker: "Daily offers", title: "Today's Store")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .bottom, spacing: 10) {
+                ScreenTitle(kicker: "Daily offers", title: "Today's Store")
+                if let wallet = model.snapshot?.wallet { WalletStack(wallet: wallet) }
+            }
             HStack(spacing: 8) {
                 if let snapshot = model.snapshot {
                     CountdownChip(label: "Resets in", end: snapshot.dailyResetsAt, systemImage: "arrow.triangle.2.circlepath")
@@ -76,30 +75,29 @@ struct TodayView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Theme.textDim)
             }
-            if let wallet = model.snapshot?.wallet { WalletBar(wallet: wallet) }
         }
-        .padding(.top, 12)
+        .padding(.top, 8)
     }
 }
 
-struct WalletBar: View {
+/// Balances stacked beside the title so they don't cost a row of their own.
+struct WalletStack: View {
     let wallet: Wallet
 
     var body: some View {
-        GlassEffectContainer(spacing: 8) {
-            HStack(spacing: 8) {
-                chip(wallet.vp, Currency.vp)
-                chip(wallet.radianite, Currency.radianite)
-                chip(wallet.kingdomCredits, Currency.kingdomCredits)
-            }
+        VStack(alignment: .trailing, spacing: 4) {
+            line(wallet.vp, Currency.vp)
+            line(wallet.radianite, Currency.radianite)
+            line(wallet.kingdomCredits, Currency.kingdomCredits)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .glassEffect(.regular, in: .rect(cornerRadius: Theme.chipRadius))
+        .fixedSize()
     }
 
-    private func chip(_ amount: Int, _ currency: String) -> some View {
-        PriceTag(amount: amount, currency: currency, font: .system(size: 14, weight: .heavy).monospacedDigit())
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .glassEffect(.regular, in: .capsule)
+    private func line(_ amount: Int, _ currency: String) -> some View {
+        PriceTag(amount: amount, currency: currency, font: .system(size: 13, weight: .heavy).monospacedDigit())
     }
 }
 
@@ -107,6 +105,7 @@ struct SkinCard: View {
     @Environment(AppModel.self) private var model
     let offer: StoreOffer
     let index: Int
+    @State private var shown = false
 
     private var skin: SkinInfo? { model.catalog?.skin(offer.itemID) }
     private var tier: ContentTier? { skin.flatMap { model.catalog?.tier(for: $0) } }
@@ -116,59 +115,51 @@ struct SkinCard: View {
         ZStack(alignment: .bottomLeading) {
             glow
             RemoteImage(url: skin?.icon)
-                .padding(.horizontal, 26)
-                .padding(.top, 20)
-                .padding(.bottom, 64)
-                .rotationEffect(.degrees(-9))
-                .shadow(color: color.opacity(0.55), radius: 22, y: 8)
-                .visualEffect { content, proxy in
-                    // Art drifts against the scroll so the card feels deeper than it is.
-                    let y = proxy.frame(in: .scrollView).midY
-                    return content.offset(x: (y - 380) * -0.04)
-                }
-            VStack(alignment: .leading, spacing: 6) {
+                .padding(.horizontal, 12)
+                .padding(.top, 36)
+                .padding(.bottom, 76)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .rotationEffect(.degrees(-12))
+                .shadow(color: color.opacity(0.55), radius: 16, y: 6)
+            VStack(alignment: .leading, spacing: 5) {
                 TierBadge(tier: tier)
-                HStack(alignment: .lastTextBaseline) {
-                    Text((skin?.name ?? "Loading…").uppercased())
-                        .font(Theme.display(30))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.55)
-                    Spacer(minLength: 8)
-                    PriceTag(amount: offer.cost)
-                        .foregroundStyle(.white)
-                }
+                Text((skin?.name ?? "Loading…").uppercased())
+                    .font(Theme.display(22))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                PriceTag(amount: offer.cost, font: .system(size: 15, weight: .heavy).monospacedDigit())
+                    .foregroundStyle(.white)
             }
-            .padding(18)
+            .padding(14)
         }
-        .frame(height: 230)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay(alignment: .topTrailing) {
             if model.isWishlisted(offer.itemID) {
-                WishlistHeart(isOn: true).padding(12)
+                WishlistHeart(isOn: true).padding(10)
             }
         }
         .overlay(alignment: .topLeading) {
             Text(String(format: "%02d", index + 1))
-                .font(Theme.display(22))
+                .font(Theme.display(20))
                 .foregroundStyle(color.opacity(0.9))
-                .padding(16)
+                .padding(14)
         }
         .glassEffect(.regular.tint(color.opacity(0.12)), in: .rect(cornerRadius: Theme.cardRadius))
-        .scrollTransition(.interactive, axis: .vertical) { content, phase in
-            content
-                .scaleEffect(phase.isIdentity ? 1 : 0.9)
-                .opacity(phase.isIdentity ? 1 : 0.35)
-                .rotation3DEffect(.degrees(phase.value * -14), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
-                .blur(radius: phase.isIdentity ? 0 : 2)
+        // The page no longer scrolls, so the cards deal in one after another on appear instead.
+        .rotation3DEffect(.degrees(shown ? 0 : 55), axis: (x: 1, y: 0, z: 0), anchor: .bottom, perspective: 0.5)
+        .offset(y: shown ? 0 : 36)
+        .opacity(shown ? 1 : 0)
+        .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.75).delay(Double(index) * 0.08)) { shown = true }
         }
     }
 
     private var glow: some View {
         ZStack {
-            RadialGradient(colors: [color.opacity(0.55), .clear], center: .init(x: 0.62, y: 0.42),
-                           startRadius: 10, endRadius: 230)
-            LinearGradient(colors: [.clear, .black.opacity(0.45)], startPoint: .center, endPoint: .bottom)
+            RadialGradient(colors: [color.opacity(0.55), .clear], center: .init(x: 0.6, y: 0.38),
+                           startRadius: 6, endRadius: 170)
+            LinearGradient(colors: [.clear, .black.opacity(0.5)], startPoint: .center, endPoint: .bottom)
         }
         .clipShape(.rect(cornerRadius: Theme.cardRadius))
     }
@@ -242,18 +233,18 @@ struct WishlistHitBanner: View {
                     .foregroundStyle(Theme.accent)
                 Text(hits.compactMap { model.catalog?.skin($0.levelID)?.name }.joined(separator: " · "))
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(2)
+                    .lineLimit(1)
             }
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .glassEffect(.regular.tint(Theme.accent.opacity(0.22)), in: .rect(cornerRadius: Theme.chipRadius + 4))
         .onAppear { pulse.toggle() }
     }
 }
 
 struct NightMarketTeaser: View {
-    let count: Int
     let ends: Date
     let action: () -> Void
 
@@ -261,18 +252,23 @@ struct NightMarketTeaser: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.system(size: 30, weight: .bold))
                     .foregroundStyle(LinearGradient(colors: [Theme.violet, Theme.accent], startPoint: .top, endPoint: .bottom))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("NIGHT MARKET IS OPEN").font(Theme.label(12)).tracking(1.4)
-                    Text("\(count) discounted offers · ends \(ends, style: .relative)")
-                        .font(.footnote)
+                    .symbolEffect(.breathe, options: .repeat(.continuous))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("NIGHT MARKET IS OPEN")
+                        .font(Theme.display(28))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text("Ends in \(ends, style: .relative)")
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(Theme.textDim)
                 }
-                Spacer()
+                Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.footnote.weight(.bold))
             }
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .glassEffect(.regular.tint(Theme.violet.opacity(0.2)).interactive(), in: .rect(cornerRadius: Theme.cardRadius))
         }
         .buttonStyle(.plain)

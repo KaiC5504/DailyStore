@@ -51,7 +51,7 @@ final class AppModel {
             snapshot = DemoData.snapshot
             wishlist = DemoData.wishlist
             phase = .ready
-            await loadCatalogIfNeeded(for: DemoData.snapshot.clientVersion)
+            await loadCatalogIfNeeded(for: DemoData.snapshot)
             return
         }
         #endif
@@ -70,7 +70,7 @@ final class AppModel {
             record("Using saved store from \(snapshot.fetchedAt.formatted(date: .omitted, time: .shortened)), next fetch after reset")
             phase = .ready
             armResetTimer()
-            await loadCatalogIfNeeded(for: snapshot.clientVersion)
+            await loadCatalogIfNeeded(for: snapshot)
         } else {
             await refresh(force: true)
         }
@@ -162,7 +162,7 @@ final class AppModel {
             shard = (try? KeychainSessionStore().load())?.shard
             armResetTimer()
             StoreRefresher.reloadWidgets()
-            await loadCatalogIfNeeded(for: fresh.clientVersion)
+            await loadCatalogIfNeeded(for: fresh)
             await setUpNotificationsOnce()
         } catch RiotError.sessionExpired, RiotError.notSignedIn {
             phase = .signedOut
@@ -196,13 +196,21 @@ final class AppModel {
         }
     }
 
-    private func loadCatalogIfNeeded(for version: String) async {
-        if let catalog, catalog.clientVersion == version, !catalog.bundles.isEmpty {
-            if !isDemo { SharedState.save(CompactCatalog(catalog)) }
-            return
+    private func loadCatalogIfNeeded(for snapshot: StoreSnapshot) async {
+        let defaults = UserDefaults.standard
+        if let catalog, catalog.clientVersion == snapshot.clientVersion, !catalog.bundles.isEmpty {
+            let missing = catalog.missingIDs(in: snapshot)
+            // valorant-api.com can lag a new bundle by hours, so don't redownload on every launch.
+            let retryAt = defaults.object(forKey: "catalogRetryAt") as? Date ?? .distantPast
+            guard !missing.isEmpty, Date() >= retryAt else {
+                if !isDemo { SharedState.save(CompactCatalog(catalog)) }
+                return
+            }
+            record("Catalog is missing \(missing.count) store items, refetching")
+            defaults.set(Date().addingTimeInterval(3600), forKey: "catalogRetryAt")
         }
         do {
-            let fresh = try await Catalog.fetch(http: http, clientVersion: version)
+            let fresh = try await Catalog.fetch(http: http, clientVersion: snapshot.clientVersion)
             catalog = fresh
             catalogCache.save(fresh)
             catalogError = nil

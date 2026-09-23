@@ -15,8 +15,6 @@ struct WishlistView: View {
                 return words.allSatisfy { name.contains($0) }
             }
             .sorted { $0.name < $1.name }
-            .prefix(60)
-            .map { $0 }
     }
 
     private var saved: [SkinInfo] {
@@ -41,6 +39,12 @@ struct WishlistView: View {
                         }
                         ForEach(saved, id: \.levelID) { skin in row(skin) }
                     } else {
+                        if !results.isEmpty {
+                            Text(results.count == 1 ? "1 skin" : "\(results.count) skins")
+                                .font(Theme.label(10)).tracking(1.2)
+                                .foregroundStyle(Theme.textFaint)
+                                .padding(.top, 8)
+                        }
                         ForEach(results, id: \.levelID) { skin in row(skin) }
                         if results.isEmpty {
                             ContentUnavailableView.search(text: query).padding(.top, 40)

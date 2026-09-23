@@ -110,3 +110,19 @@ public struct CompactCatalog: Codable, Sendable, Equatable {
         URL(string: "https://media.valorant-api.com/weaponskinlevels/\(levelID)/displayicon.png")
     }
 }
+
+extension Catalog {
+    /// Skins and bundles in the store that this catalog can't name. Riot ships bundles mid-patch,
+    /// so a catalog cached for the current client version can still be out of date.
+    public func missingIDs(in snapshot: StoreSnapshot) -> Set<String> {
+        let store = snapshot.storefront
+        var skinIDs = store.daily.map(\.itemID) + (store.nightMarket ?? []).map(\.offer.itemID)
+        var missing: Set<String> = []
+        for bundle in store.bundles {
+            if self.bundle(bundle.dataAssetID) == nil { missing.insert(bundle.dataAssetID.lowercased()) }
+            skinIDs += bundle.items.filter { $0.kind == .skin }.map(\.itemID)
+        }
+        for id in skinIDs where skin(id) == nil { missing.insert(id.lowercased()) }
+        return missing
+    }
+}

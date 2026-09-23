@@ -6,30 +6,28 @@ struct BundlesView: View {
     @Namespace private var zoom
 
     var body: some View {
+        let bundles = model.snapshot?.storefront.bundles ?? []
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+            FitPage(minHeight: CGFloat(110 + bundles.count * 170), refresh: { await model.refresh(force: true) }) {
+                VStack(alignment: .leading, spacing: 14) {
                     ScreenTitle(kicker: "Featured", title: "Bundles")
-                        .padding(.top, 12)
-                    if let snapshot = model.snapshot, !snapshot.storefront.bundles.isEmpty {
-                        ForEach(snapshot.storefront.bundles, id: \.id) { bundle in
+                        .padding(.top, 8)
+                    if let snapshot = model.snapshot, !bundles.isEmpty {
+                        ForEach(bundles, id: \.id) { bundle in
                             NavigationLink(value: bundle) {
                                 BundleCard(bundle: bundle, ends: snapshot.bundleEndsAt(bundle))
                                     .matchedTransitionSource(id: bundle.id, in: zoom)
                             }
                             .buttonStyle(PressableStyle())
+                            .frame(maxHeight: 340)
                         }
                     } else {
                         ContentUnavailableView("No bundles loaded", systemImage: "shippingbox",
                                                description: Text("Pull down to refresh."))
-                            .padding(.top, 60)
+                            .frame(maxHeight: .infinity)
                     }
                 }
-                .padding(.horizontal, Theme.gutter)
-                .padding(.bottom, 40)
             }
-            .scrollIndicators(.hidden)
-            .refreshable { await model.refresh(force: true) }
             .background(AmbientBackground(tint: Theme.accent, secondary: .cyan.opacity(0.6)))
             .navigationDestination(for: FeaturedBundle.self) { bundle in
                 BundleDetailView(bundle: bundle)
@@ -47,17 +45,15 @@ private struct BundleCard: View {
     @Environment(AppModel.self) private var model
     let bundle: FeaturedBundle
     let ends: Date
+    @State private var shown = false
 
     var body: some View {
         let info = model.catalog?.bundle(bundle.dataAssetID)
         ZStack(alignment: .bottomLeading) {
-            BannerImage(url: info?.art, height: 210)
-                .visualEffect { content, proxy in
-                    content.offset(y: (proxy.frame(in: .scrollView).minY - 200) * -0.08)
-                }
+            BundleArt(bundle: bundle, info: info)
             LinearGradient(colors: [.clear, Theme.ink.opacity(0.92)], startPoint: .center, endPoint: .bottom)
             VStack(alignment: .leading, spacing: 6) {
-                Text((info?.name ?? "Bundle").uppercased())
+                Text((info?.name ?? model.catalog?.collectionName(of: bundle) ?? "New bundle").uppercased())
                     .font(Theme.display(34))
                     .foregroundStyle(.white)
                     .lineLimit(1)
@@ -68,20 +64,47 @@ private struct BundleCard: View {
                             .foregroundStyle(.white)
                     }
                     Spacer()
-                    Text("Ends \(ends, style: .relative)")
+                    Text("Ends in \(ends, style: .relative)")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Theme.textDim)
                 }
             }
             .padding(16)
         }
-        .frame(height: 210)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(.rect(cornerRadius: Theme.cardRadius))
         .glassEffect(.clear, in: .rect(cornerRadius: Theme.cardRadius))
-        .scrollTransition(.interactive, axis: .vertical) { content, phase in
-            content
-                .scaleEffect(phase.isIdentity ? 1 : 0.92)
-                .opacity(phase.isIdentity ? 1 : 0.4)
+        .scaleEffect(shown ? 1 : 0.92)
+        .opacity(shown ? 1 : 0)
+        .onAppear { withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) { shown = true } }
+    }
+}
+
+/// The bundle banner, or its first skin while valorant-api.com hasn't published the new bundle yet.
+struct BundleArt: View {
+    @Environment(AppModel.self) private var model
+    let bundle: FeaturedBundle
+    let info: BundleInfo?
+    var height: CGFloat?
+
+    var body: some View {
+        if let art = info?.art {
+            BannerImage(url: art, height: height)
+        } else {
+            let skin = bundle.items.first { $0.kind == .skin }.flatMap { model.catalog?.skin($0.itemID) }
+            let color = skin.map { model.catalog.tierColor($0.levelID) } ?? Theme.accent
+            ZStack {
+                RadialGradient(colors: [color.opacity(0.55), .clear], center: .init(x: 0.5, y: 0.4),
+                               startRadius: 8, endRadius: 220)
+                RemoteImage(url: skin?.icon)
+                    .padding(.horizontal, 36)
+                    .padding(.top, 20)
+                    .padding(.bottom, 64)
+                    .rotationEffect(.degrees(-8))
+                    .shadow(color: color.opacity(0.6), radius: 20)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
         }
     }
 }
@@ -94,10 +117,10 @@ struct BundleDetailView: View {
         let info = model.catalog?.bundle(bundle.dataAssetID)
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                BannerImage(url: info?.art, height: 230)
+                BundleArt(bundle: bundle, info: info, height: 230)
                     .clipShape(.rect(cornerRadius: Theme.cardRadius))
                 VStack(alignment: .leading, spacing: 6) {
-                    Text((info?.name ?? "Bundle").uppercased())
+                    Text((info?.name ?? model.catalog?.collectionName(of: bundle) ?? "New bundle").uppercased())
                         .font(Theme.display(44))
                     if let cost = bundle.discountedCost ?? bundle.baseCost {
                         PriceTag(amount: cost, original: bundle.baseCost,
@@ -177,7 +200,7 @@ struct BundleDetailView: View {
 /// natural width can't widen the layout, which a plain `.fill` frame does.
 struct BannerImage: View {
     let url: URL?
-    let height: CGFloat
+    var height: CGFloat?
 
     var body: some View {
         Color.clear
@@ -185,5 +208,18 @@ struct BannerImage: View {
             .frame(height: height)
             .overlay { RemoteImage(url: url, contentMode: .fill) }
             .clipped()
+    }
+}
+
+extension Catalog {
+    /// Riot names bundle skins "<Collection> <Weapon>", so the shared prefix stands in for a
+    /// bundle name that valorant-api.com hasn't published yet.
+    func collectionName(of bundle: FeaturedBundle) -> String? {
+        let names = bundle.items.filter { $0.kind == .skin }.compactMap { skin($0.itemID)?.name.split(separator: " ") }
+        guard names.count > 1, var prefix = names.first else { return nil }
+        for words in names.dropFirst() {
+            prefix = zip(prefix, words).prefix(while: { $0.0 == $0.1 }).map { $0.0 }
+        }
+        return prefix.isEmpty ? nil : prefix.joined(separator: " ")
     }
 }
