@@ -12,10 +12,15 @@ public struct RiotAPI: Sendable {
     // The geo service answers with a region; the store is served per shard.
     static let regionToShard = ["na": "na", "latam": "na", "br": "na", "pbe": "pbe", "eu": "eu", "ap": "ap", "kr": "kr"]
 
-    let http: HTTPClient
+    /// Both match endpoints refuse pages wider than this.
+    public static let pageSize = 20
 
-    public init(http: HTTPClient) {
+    let http: HTTPClient
+    let retryBase: Double
+
+    public init(http: HTTPClient, retryBase: Double = 10) {
         self.http = http
+        self.retryBase = retryBase
     }
 
     public struct Context: Sendable {
@@ -96,6 +101,52 @@ public struct RiotAPI: Sendable {
         return Set((raw.Entitlements ?? []).map { $0.ItemID.lowercased() })
     }
 
+    public func matchHistory(_ ctx: Context, start: Int) async throws -> HistoryPage {
+        let url = "https://pd.\(ctx.shard).a.pvp.net/match-history/v1/history/\(ctx.puuid)?startIndex=\(start)&endIndex=\(start + Self.pageSize)"
+        let raw = try JSONDecoder().decode(RawHistory.self, from: try await patient("Match history", game(url, ctx))!)
+        let entries = (raw.History ?? []).map {
+            HistoryEntry(id: $0.MatchID.lowercased(), queue: $0.QueueID ?? "",
+                         start: Date(timeIntervalSince1970: TimeInterval($0.GameStartTime ?? 0) / 1000))
+        }
+        return HistoryPage(entries: entries, start: start, total: raw.Total ?? entries.count)
+    }
+
+    /// Nil when Riot no longer has the match.
+    public func matchDetails(_ ctx: Context, id: String) async throws -> Match? {
+        let url = "https://pd.\(ctx.shard).a.pvp.net/match-details/v1/matches/\(id)"
+        guard let body = try await patient("Match details", game(url, ctx), missingIsNil: true) else { return nil }
+        return try Match.parse(body)
+    }
+
+    public func competitiveUpdates(_ ctx: Context, start: Int = 0) async throws -> [CompetitiveUpdate] {
+        let url = "https://pd.\(ctx.shard).a.pvp.net/mmr/v1/players/\(ctx.puuid)/competitiveupdates?startIndex=\(start)&endIndex=\(start + Self.pageSize)&queue=competitive"
+        return try CompetitiveUpdate.parse(try await patient("Competitive updates", game(url, ctx))!)
+    }
+
+    public func rank(_ ctx: Context) async throws -> RankStatus {
+        async let act = currentAct(ctx)
+        let mmr = try await patient("Rank", game("https://pd.\(ctx.shard).a.pvp.net/mmr/v1/players/\(ctx.puuid)", ctx))!
+        return try RankStatus.parse(mmr: mmr, act: await act)
+    }
+
+    /// Nil when content-service is down; the rank then falls back to the latest update.
+    func currentAct(_ ctx: Context) async -> CurrentAct? {
+        let url = "https://shared.\(ctx.shard).a.pvp.net/content-service/v3/content"
+        guard let body = try? await patient("Content", game(url, ctx)) else { return nil }
+        return try? CurrentAct.parse(content: body)
+    }
+
+    private struct RawHistory: Decodable {
+        struct Entry: Decodable {
+            let MatchID: String
+            let GameStartTime: Int?
+            let QueueID: String?
+        }
+
+        let Total: Int?
+        let History: [Entry]?
+    }
+
     private struct RawOwned: Decodable {
         struct Entitlement: Decodable { let ItemID: String }
         let Entitlements: [Entitlement]?
@@ -124,6 +175,22 @@ public struct RiotAPI: Sendable {
         return response.body
     }
 
+    /// Match calls come in bursts, so a rate limit or a flaky 5xx gets two more tries.
+    private func patient(_ step: String, _ request: URLRequest, missingIsNil: Bool = false) async throws -> Data? {
+        var attempt = 0
+        while true {
+            let response = try await http.send(request)
+            if response.isSuccess { return response.body }
+            if missingIsNil, response.status == 404 { return nil }
+            guard [429, 500, 502, 503].contains(response.status), attempt < 2 else {
+                throw RiotError.http(step: step, status: response.status)
+            }
+            attempt += 1
+            let wait = response.header("Retry-After").flatMap(Double.init) ?? retryBase * Double(attempt)
+            try await Task.sleep(nanoseconds: UInt64(min(wait, 60) * 1_000_000_000))
+        }
+    }
+
     private func json(_ step: String, _ request: URLRequest) async throws -> [String: Any] {
         let body = try await data(step, request)
         guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else {
@@ -131,4 +198,24 @@ public struct RiotAPI: Sendable {
         }
         return object
     }
+}
+
+public struct HistoryEntry: Codable, Hashable, Sendable, Identifiable {
+    public let id: String
+    public let queue: String
+    public let start: Date
+
+    public init(id: String, queue: String, start: Date) {
+        self.id = id
+        self.queue = queue
+        self.start = start
+    }
+}
+
+public struct HistoryPage: Sendable {
+    public let entries: [HistoryEntry]
+    public let start: Int
+    public let total: Int
+
+    public var next: Int? { start + RiotAPI.pageSize < total ? start + RiotAPI.pageSize : nil }
 }

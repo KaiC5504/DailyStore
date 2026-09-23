@@ -4,13 +4,25 @@ import ValorantCore
 struct NightMarketView: View {
     @Environment(AppModel.self) private var model
     @Namespace private var zoom
+    var close: () -> Void = {}
 
     var body: some View {
         NavigationStack {
             FitPage(minHeight: 700, refresh: { await model.refresh(force: true) }) {
                 VStack(alignment: .leading, spacing: 12) {
-                    ScreenTitle(kicker: "Limited discounts", title: "Night Market")
-                        .padding(.top, 8)
+                    HStack(alignment: .top) {
+                        ScreenTitle(kicker: "Limited discounts", title: "Night Market")
+                        Button(action: close) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(13)
+                        }
+                        .buttonStyle(.plain)
+                        .glassEffect(.regular.interactive(), in: .circle)
+                        .accessibilityLabel("Close")
+                    }
+                    .padding(.top, 8)
                     if let snapshot = model.snapshot, let offers = snapshot.storefront.nightMarket {
                         HStack {
                             if let ends = snapshot.nightMarketEndsAt {

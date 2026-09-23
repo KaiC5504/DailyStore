@@ -25,6 +25,7 @@ final class AppModel {
     var showLogin = false
 
     let isDemo: Bool
+    let matches: MatchesModel
 
     @ObservationIgnored private let http = URLSessionHTTPClient()
     @ObservationIgnored private let service: StoreService
@@ -39,6 +40,7 @@ final class AppModel {
         #endif
         let relay = LogRelay()
         service = StoreRefresher.makeService(log: { relay.send($0) })
+        matches = MatchesModel(service: service, isDemo: isDemo, log: { relay.send($0) })
         relay.model = self
         revealed = Set(UserDefaults.standard.stringArray(forKey: "revealedNightOffers") ?? [])
     }
@@ -104,6 +106,7 @@ final class AppModel {
     func signIn(cookies: RiotCookies) async {
         showLogin = false
         phase = .loading
+        matches.signedOut()
         await run { [service] in
             await StoreRefresher.didFetch(try await service.signIn(cookies: cookies))
         }
@@ -111,6 +114,7 @@ final class AppModel {
 
     func signOut() async {
         try? await service.signOut()
+        matches.signedOut()
         snapshot = nil
         SharedState.clearSnapshot()
         StoreRefresher.reloadWidgets()

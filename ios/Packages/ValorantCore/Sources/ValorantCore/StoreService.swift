@@ -39,17 +39,22 @@ public struct StoreSnapshot: Codable, Sendable {
 }
 
 public actor StoreService {
-    private let api: RiotAPI
+    let api: RiotAPI
     private let sessions: SessionStore
-    private let log: @Sendable (String) -> Void
+    let log: @Sendable (String) -> Void
+    private var cached: (context: RiotAPI.Context, expires: Date)?
 
-    public init(http: HTTPClient, sessions: SessionStore, log: @escaping @Sendable (String) -> Void = { _ in }) {
-        self.api = RiotAPI(http: http)
+    /// `retryBase` is the back-off in seconds when Riot rate-limits a match call; tests pass 0.
+    public init(http: HTTPClient, sessions: SessionStore, retryBase: Double = 10,
+                log: @escaping @Sendable (String) -> Void = { _ in }) {
+        self.api = RiotAPI(http: http, retryBase: retryBase)
         self.sessions = sessions
         self.log = log
     }
 
     public var isSignedIn: Bool { (try? sessions.load())?.cookies.hasSession ?? false }
+
+    public var puuid: String? { (try? sessions.load())?.puuid?.lowercased() }
 
     /// Starts a fresh session from cookies harvested by the login webview.
     public func signIn(cookies: RiotCookies) async throws -> StoreSnapshot {
@@ -58,16 +63,37 @@ public actor StoreService {
             throw RiotError.notSignedIn
         }
         try sessions.save(RiotSession(cookies: cookies))
+        cached = nil
         log("Sign-in: saved \(cookies.values.keys.sorted().joined(separator: ", "))")
         return try await fetch()
     }
 
     public func signOut() throws {
         try sessions.clear()
+        cached = nil
         log("Signed out")
     }
 
     public func fetch() async throws -> StoreSnapshot {
+        // The store always reauths: that is what keeps the cookies sliding forward.
+        let ctx = try await context(fresh: true)
+        async let storefront = api.storefront(ctx)
+        async let wallet = api.wallet(ctx)
+        async let owned = ownedSkins(ctx)
+        let snapshot = StoreSnapshot(
+            storefront: try await storefront,
+            wallet: try await wallet,
+            clientVersion: ctx.clientVersion,
+            fetchedAt: Date(),
+            owned: await owned
+        )
+        log("Store OK: \(snapshot.storefront.daily.count) daily offers, night market \(snapshot.storefront.nightMarket == nil ? "off" : "on"), \(snapshot.owned.map { "\($0.count) owned skins" } ?? "owned skins unavailable")")
+        return snapshot
+    }
+
+    /// Tokens for game calls. Access tokens last an hour, so match paging reuses them for 45 minutes.
+    public func context(fresh: Bool = false) async throws -> RiotAPI.Context {
+        if !fresh, let cached, cached.expires > Date() { return cached.context }
         guard var session = try sessions.load(), session.cookies.hasSession else { throw RiotError.notSignedIn }
 
         let tokens = try await reauth(&session)
@@ -85,19 +111,8 @@ public actor StoreService {
             shard: session.shard!
         )
         log("Tokens OK, shard \(ctx.shard), client \(ctx.clientVersion)")
-
-        async let storefront = api.storefront(ctx)
-        async let wallet = api.wallet(ctx)
-        async let owned = ownedSkins(ctx)
-        let snapshot = StoreSnapshot(
-            storefront: try await storefront,
-            wallet: try await wallet,
-            clientVersion: ctx.clientVersion,
-            fetchedAt: Date(),
-            owned: await owned
-        )
-        log("Store OK: \(snapshot.storefront.daily.count) daily offers, night market \(snapshot.storefront.nightMarket == nil ? "off" : "on"), \(snapshot.owned.map { "\($0.count) owned skins" } ?? "owned skins unavailable")")
-        return snapshot
+        cached = (ctx, Date().addingTimeInterval(45 * 60))
+        return ctx
     }
 
     /// Only the wishlist uses this, so a failure here shouldn't cost the whole store.

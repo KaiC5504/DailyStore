@@ -14,6 +14,7 @@ struct DailyStoreApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
+                .environment(model.matches)
                 .preferredColorScheme(.dark)
                 .tint(Theme.accent)
                 .task { await model.start() }
@@ -38,7 +39,7 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
     @State private var tab: AppTab = AppTab(rawValue: UserDefaults.standard.string(forKey: "DemoTab") ?? "") ?? .today
 
-    enum AppTab: String { case today, night, bundles, wishlist, settings }
+    enum AppTab: String { case today, bundles, matches, wishlist, settings }
 
     var body: some View {
         #if DEBUG
@@ -55,16 +56,17 @@ struct RootView: View {
     private var tabs: some View {
         TabView(selection: $tab) {
             Tab("Today", systemImage: "sparkles", value: AppTab.today) {
-                TodayView(openNightMarket: { tab = .night })
+                TodayView()
             }
-            Tab("Night Market", systemImage: "moon.stars.fill", value: AppTab.night) {
-                NightMarketView()
-            }
+            // The Night Market lives behind the bar on Today; its unrevealed cards still count here.
             .badge(model.snapshot?.storefront.nightMarket.map { offers in
                 offers.filter { !model.isRevealed($0) }.count
             } ?? 0)
             Tab("Bundles", systemImage: "shippingbox.fill", value: AppTab.bundles) {
                 BundlesView()
+            }
+            Tab("Matches", systemImage: "list.bullet.rectangle.portrait.fill", value: AppTab.matches) {
+                MatchesView()
             }
             Tab("Wishlist", systemImage: "heart.fill", value: AppTab.wishlist) {
                 WishlistView()

@@ -4,7 +4,8 @@
 # ///
 """Smoke-test the Riot cookie-reauth -> storefront chain from this machine.
 
-Run: uv run tools/probe.py
+Run: uv run tools/probe.py            (store)
+     uv run tools/probe.py --matches  (match history, match details, rank; prints shapes only)
 Paste the Cookie header from an authenticated auth.riotgames.com/authorize request when prompted
 (input is hidden). Nothing is written to disk; tokens are never printed.
 """
@@ -13,8 +14,11 @@ import base64
 import getpass
 import json
 import os
+import re
 import secrets
 import sys
+import time
+from collections import defaultdict
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -123,6 +127,9 @@ def main() -> None:
             "X-Riot-ClientVersion": version,
         }
         pd = f"https://pd.{shard}.a.pvp.net"
+        if "--matches" in sys.argv:
+            probe_matches(http, pd, f"https://shared.{shard}.a.pvp.net", puuid, riot_headers)
+            return
         r = http.post(f"{pd}/store/v3/storefront/{puuid}", headers=riot_headers, json={})
         step("storefront v3", r.is_success, f"HTTP {r.status_code}" + ("" if r.is_success else f" {r.text[:200]}"))
         store = r.json()
@@ -145,6 +152,194 @@ def main() -> None:
         print(f"\nNight market: {'LIVE, ' + str(len(bonus['BonusStoreOffers'])) + ' offers' if bonus else 'not active'}")
         bundles = store.get("FeaturedBundle", {}).get("Bundles", [])
         print(f"Featured bundles: {len(bundles)}")
+
+
+UUID_KEY = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+# Values safe to print: game enums only. Names, tags and PUUIDs never leave the shape tree.
+ENUM_KEYS = {
+    "queueID", "QueueID", "gameMode", "provisioningFlowID", "completionState", "isRanked", "isCompleted",
+    "roundResult", "roundResultCode", "roundCeremony", "damageType", "plantSite", "CompetitiveMovement",
+}
+
+
+def new_shapes():
+    return defaultdict(lambda: {"types": set(), "lens": set()})
+
+
+def collect(value, path, shapes, enums):
+    shapes[path]["types"].add("null" if value is None else type(value).__name__)
+    key = path.rsplit(".", 1)[-1]
+    if isinstance(value, dict):
+        for k, v in value.items():
+            collect(v, f"{path}.{'{uuid}' if UUID_KEY.match(k) else k}", shapes, enums)
+    elif isinstance(value, list):
+        shapes[path]["lens"].add(len(value))
+        for item in value:
+            collect(item, f"{path}[]", shapes, enums)
+    elif key in ENUM_KEYS:
+        enums[key].add(repr(value))
+    elif key in ("teamId", "winningTeam", "damageItem", "weapon", "armor") and isinstance(value, str):
+        if UUID_KEY.match(value):
+            case = "upper" if value.upper() == value else "lower" if value.lower() == value else "mixed"
+            enums[key].add(f"<uuid {case}>")
+        elif value in ("Red", "Blue", "Neutral", "") or key in ("damageItem", "weapon", "armor"):
+            enums[key].add(repr(value))
+        else:
+            enums[key].add(f"<other, {len(value)} chars>")
+
+
+def describe(entry):
+    text = "|".join(sorted(entry["types"]))
+    if entry["lens"]:
+        text += f"  n={min(entry['lens'])}..{max(entry['lens'])}"
+    return text
+
+
+def print_shape(title, shapes, baseline=None):
+    print(f"\n  shape: {title}")
+    for path in sorted(shapes):
+        if baseline is None:
+            print(f"    {path}: {describe(shapes[path])}")
+        elif path not in baseline:
+            print(f"    + {path}: {describe(shapes[path])}")
+        elif shapes[path]["types"] != baseline[path]["types"]:
+            print(f"    ~ {path}: {describe(shapes[path])} (was {describe(baseline[path])})")
+    if baseline is not None:
+        for path in sorted(set(baseline) - set(shapes)):
+            print(f"    - {path}")
+
+
+def print_enums(enums):
+    for key in sorted(enums):
+        print(f"    {key}: {', '.join(sorted(enums[key]))}")
+
+
+def fetch(http, url, headers, label, quiet=False):
+    time.sleep(0.4)
+    r = http.get(url, headers=headers)
+    extra = f", retry-after={r.headers['retry-after']}" if "retry-after" in r.headers else ""
+    if not r.is_success:
+        extra += f" {r.text[:160]}"
+    if not quiet or not r.is_success:
+        mark = "OK  " if r.is_success else "FAIL"
+        print(f"[{mark}] {label} - HTTP {r.status_code}, {len(r.content) / 1024:.0f} KB{extra}")
+    return r.json() if r.is_success else None
+
+
+def day(ms):
+    return time.strftime("%Y-%m-%d", time.gmtime(ms / 1000))
+
+
+def probe_matches(http, pd, shared, puuid, headers):
+    print("\n== Match history ==")
+    page = fetch(http, f"{pd}/match-history/v1/history/{puuid}?startIndex=0&endIndex=20", headers, "history 0-20")
+    if not page:
+        return
+    history = page.get("History", [])
+    total = page.get("Total")
+    queues = defaultdict(int)
+    for h in history:
+        queues[h.get("QueueID")] += 1
+    print(f"       keys {sorted(page)}; Total={total}; returned {len(history)}")
+    print(f"       history item keys: {sorted(history[0]) if history else '-'}")
+    print(f"       queues on page 0: {dict(queues)}")
+    if history:
+        print(f"       newest {day(history[0]['GameStartTime'])}, page-0 oldest {day(history[-1]['GameStartTime'])}")
+
+    wide = fetch(http, f"{pd}/match-history/v1/history/{puuid}?startIndex=0&endIndex=40", headers, "history 0-40 (page cap)")
+    if wide:
+        print(f"       asked for 40, got {len(wide.get('History', []))}")
+    ranked = fetch(http, f"{pd}/match-history/v1/history/{puuid}?startIndex=0&endIndex=20&queue=competitive",
+                   headers, "history queue=competitive")
+    if ranked:
+        seen = {h.get("QueueID") for h in ranked.get("History", [])}
+        print(f"       Total={ranked.get('Total')}, queues returned {seen}")
+    if isinstance(total, int) and total > 20:
+        tail = fetch(http, f"{pd}/match-history/v1/history/{puuid}?startIndex={total - 20}&endIndex={total}",
+                     headers, f"history last page ({total - 20}-{total})")
+        if tail and tail.get("History"):
+            print(f"       oldest match Riot still lists: {day(tail['History'][-1]['GameStartTime'])}")
+
+    print("\n== valorant-api.com lookups ==")
+    maps = {m["mapUrl"] for m in http.get("https://valorant-api.com/v1/maps").json()["data"]}
+    agents = {a["uuid"].lower() for a in http.get("https://valorant-api.com/v1/agents?isPlayableCharacter=true").json()["data"]}
+    weapons = {w["uuid"].lower() for w in http.get("https://valorant-api.com/v1/weapons").json()["data"]}
+    gear = {g["uuid"].lower() for g in http.get("https://valorant-api.com/v1/gear").json()["data"]}
+    print(f"       maps {len(maps)}, agents {len(agents)}, weapons {len(weapons)}, gear {len(gear)}")
+
+    picked, seen_queues = [], set()
+    for h in history:
+        if not picked or h.get("QueueID") not in seen_queues:
+            picked.append(h)
+            seen_queues.add(h.get("QueueID"))
+    picked = picked[:6]
+
+    print("\n== Match details ==")
+    baseline = None
+    for index, h in enumerate(picked, 1):
+        body = fetch(http, f"{pd}/match-details/v1/matches/{h['MatchID']}", headers,
+                     f"details #{index} ({h.get('QueueID')!r})")
+        if not body:
+            continue
+        shapes, enums = new_shapes(), defaultdict(set)
+        collect(body, "$", shapes, enums)
+        info = body.get("matchInfo", {})
+        players = body.get("players") or []
+        rounds = body.get("roundResults") or []
+        teams = body.get("teams") or []
+        me = next((p for p in players if p.get("subject") == puuid), None)
+        print(f"       mode {info.get('gameMode')}, players {len(players)}, rounds {len(rounds)}, "
+              f"teams {len(teams)}, length {(info.get('gameLengthMillis') or 0) // 60000} min, "
+              f"owner in players: {me is not None}")
+        if teams:
+            print(f"       team fields: " + "; ".join(
+                f"won={t.get('won')} roundsWon={t.get('roundsWon')} numPoints={t.get('numPoints')}" for t in teams[:4])
+                + (" ..." if len(teams) > 4 else ""))
+        weapon_ids = [k["finishingDamage"]["damageItem"] for r in rounds for s in r.get("playerStats") or []
+                      for k in s.get("kills") or [] if UUID_KEY.match((k.get("finishingDamage") or {}).get("damageItem") or "")]
+        econ = [s.get("economy") or {} for r in rounds for s in r.get("playerStats") or []]
+        print(f"       joins: map {'OK' if info.get('mapId') in maps else 'MISSING ' + repr(info.get('mapId'))}; "
+              f"agents unknown {sum(p.get('characterId', '').lower() not in agents for p in players)}/{len(players)}; "
+              f"kill weapons unknown {sum(w.lower() not in weapons for w in weapon_ids)}/{len(weapon_ids)}; "
+              f"loadout weapons unknown {sum(bool(e.get('weapon')) and e['weapon'].lower() not in weapons for e in econ)}; "
+              f"armor unknown {sum(bool(e.get('armor')) and e['armor'].lower() not in gear for e in econ)}")
+        print_shape(f"details #{index}" + (" (full)" if baseline is None else " (diff vs #1)"), shapes, baseline)
+        print("  values:")
+        print_enums(enums)
+        if baseline is None:
+            baseline = shapes
+
+    print("\n== Rank ==")
+    for end in (20, 40):
+        updates = fetch(http, f"{pd}/mmr/v1/players/{puuid}/competitiveupdates?startIndex=0&endIndex={end}&queue=competitive",
+                        headers, f"competitiveupdates 0-{end}")
+        if updates:
+            print(f"       returned {len(updates.get('Matches', []))}")
+            if end == 20:
+                shapes, enums = new_shapes(), defaultdict(set)
+                collect(updates, "$", shapes, enums)
+                print_shape("competitiveupdates", shapes)
+                print_enums(enums)
+                ids = {h["MatchID"] for h in history}
+                print(f"       update MatchIDs also in history page 0: "
+                      f"{sum(m['MatchID'] in ids for m in updates.get('Matches', []))}")
+
+    mmr = fetch(http, f"{pd}/mmr/v1/players/{puuid}", headers, "mmr")
+    if mmr:
+        shapes, enums = new_shapes(), defaultdict(set)
+        collect(mmr, "$", shapes, enums)
+        print_shape("mmr", shapes)
+        print(f"       QueueSkills keys: {sorted((mmr.get('QueueSkills') or {}).keys())}")
+
+    content = fetch(http, f"{shared}/content-service/v3/content", headers, "content-service v3")
+    if content:
+        acts = [s for s in content.get("Seasons", []) if s.get("IsActive") and s.get("Type") == "act"]
+        print(f"       keys {sorted(content)}; seasons {len(content.get('Seasons', []))}; "
+              f"active act: {[(a.get('Name'), a.get('ID')) for a in acts]}")
+        if mmr and acts:
+            seasonal = ((mmr.get("QueueSkills") or {}).get("competitive") or {}).get("SeasonalInfoBySeasonID") or {}
+            info = seasonal.get(acts[0]["ID"])
+            print(f"       current act in mmr: {'yes, tier ' + str(info.get('CompetitiveTier')) if info else 'no entry'}")
 
 
 if __name__ == "__main__":

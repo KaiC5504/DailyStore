@@ -26,6 +26,8 @@ enum Theme {
     /// Items Riot sells that valorant-api.com hasn't published yet.
     static let newItem = Color(red: 0.95, green: 0.78, blue: 0.38)
     static let owned = Color(red: 0.36, green: 0.9, blue: 0.7)
+    static let win = Color(red: 0.3, green: 0.85, blue: 0.78)
+    static let loss = Color(red: 1.0, green: 0.36, blue: 0.42)
 }
 
 extension Color {

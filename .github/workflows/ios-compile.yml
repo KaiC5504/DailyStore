@@ -98,13 +98,18 @@ jobs:
             xcrun simctl io "$UDID" screenshot "shots/$name.png"
           }
           shoot 02-today 40 -DemoTab today
-          shoot 03-night-hidden 10 -DemoTab night
-          shoot 04-night-revealed 10 -DemoTab night -DemoReveal YES
+          shoot 03-night-hidden 12 -DemoTab today -DemoNight YES
+          shoot 04-night-revealed 12 -DemoTab today -DemoNight YES -DemoReveal YES
           shoot 05-bundles 10 -DemoTab bundles
           shoot 06-detail 12 -DemoTab today -DemoDetail 3
           shoot 07-wishlist 10 -DemoTab wishlist
           shoot 08-settings 8 -DemoTab settings
           shoot 10-wishlist-owned 10 -DemoTab wishlist -DemoSearch Reaver
+          shoot 11-matches 20 -DemoTab matches
+          shoot 12-match-detail 14 -DemoTab matches -DemoMatch 1
+          shoot 13-round 14 -DemoTab matches -DemoMatch 1 -DemoRound 7
+          shoot 14-player 14 -DemoTab matches -DemoMatch 1 -DemoPlayer 6
+          shoot 15-deathmatch 14 -DemoTab matches -DemoMatch 6
           shoot 09-widgets 8 -DemoWidgets YES
           ls -la shots
 

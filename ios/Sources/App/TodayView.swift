@@ -11,7 +11,11 @@ struct TodayView: View {
     @Environment(AppModel.self) private var model
     @Namespace private var zoom
     @State private var path = NavigationPath()
-    var openNightMarket: () -> Void = {}
+    #if DEBUG
+    @State private var showNightMarket = UserDefaults.standard.bool(forKey: "DemoNight")
+    #else
+    @State private var showNightMarket = false
+    #endif
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -30,7 +34,7 @@ struct TodayView: View {
                         }
                         .frame(maxHeight: .infinity)
                         if snapshot.storefront.nightMarket != nil, let ends = snapshot.nightMarketEndsAt {
-                            NightMarketTeaser(ends: ends, action: openNightMarket)
+                            NightMarketTeaser(ends: ends) { showNightMarket = true }
                         }
                         Text("Updated \(snapshot.fetchedAt.formatted(date: .abbreviated, time: .shortened)) · pull to refresh")
                             .font(.caption2)
@@ -45,6 +49,9 @@ struct TodayView: View {
                     .navigationTransition(.zoom(sourceID: route.levelID, in: zoom))
             }
             .toolbarVisibility(.hidden, for: .navigationBar)
+        }
+        .fullScreenCover(isPresented: $showNightMarket) {
+            NightMarketView { showNightMarket = false }
         }
         #if DEBUG
         .task(id: model.catalog?.clientVersion) {
