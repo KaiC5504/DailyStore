@@ -173,6 +173,9 @@ extension DemoData {
         }
 
         let size = spec.teamSize
+        // Rotates the owner's agent so the top-agents row has more than one tile.
+        let mine = [0, 0, 2, 0, 3, 0, 2, 0, 0, 3, 2, 0][index]
+        let lineup = (0..<size * 2).map { slot in slot == 0 ? agents[mine] : slot == mine ? agents[0] : agents[slot] }
         let blue = (0..<size).map(playerID)
         let red = (size..<size * 2).map(playerID)
         let didWin = spec.mine > spec.theirs
@@ -244,7 +247,7 @@ extension DemoData {
         let count = order.count
         let players = (blue + red).enumerated().map { slot, id in
             Match.Player(id: id, name: names[slot], tag: slot == 0 ? "DEMO" : "\(1000 + slot * 37)",
-                         team: blue.contains(id) ? "Blue" : "Red", agent: agents[slot],
+                         team: blue.contains(id) ? "Blue" : "Red", agent: lineup[slot],
                          tier: spec.queue == "competitive" ? 16 + rng.next(4) : 0,
                          party: slot == 0 || slot == 2 ? "demo-party" : "p\(slot)",
                          score: score[id, default: 0], kills: kills[id, default: 0], deaths: deaths[id, default: 0],

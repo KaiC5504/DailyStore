@@ -70,10 +70,8 @@ private struct MatchHeader: View {
         let outcome = match.outcome(for: me)
         let map = matches.assets?.map(match.mapURL)
         ZStack(alignment: .bottomLeading) {
-            RemoteImage(url: map?.splash, contentMode: .fill)
+            FillImage(url: map?.splash)
                 .frame(height: 300)
-                .frame(maxWidth: .infinity)
-                .clipped()
             LinearGradient(colors: [.clear, Theme.ink.opacity(0.6), Theme.ink], startPoint: .top, endPoint: .bottom)
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(matches.queueName(match.isCustom ? MatchesModel.customFilter : match.queue)) · \(map?.name ?? "Unknown map")".uppercased())
@@ -114,9 +112,8 @@ struct PerformanceCard: View {
     var body: some View {
         let agent = matches.assets?.agent(player.agent)
         HStack(alignment: .bottom, spacing: 0) {
-            RemoteImage(url: agent?.portrait ?? agent?.icon, contentMode: .fill)
-                .frame(width: 96, height: 150, alignment: .top)
-                .clipped()
+            FillImage(url: agent?.portrait ?? agent?.icon, alignment: .top)
+                .frame(width: 96, height: 150)
                 .mask(LinearGradient(colors: [.black, .black, .clear], startPoint: .top, endPoint: .bottom))
             VStack(alignment: .leading, spacing: 10) {
                 Text(title.uppercased())
@@ -124,7 +121,7 @@ struct PerformanceCard: View {
                     .foregroundStyle(Theme.textDim)
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 10) {
                     GridRow {
-                        StatCell(label: "ACS", value: "\(match.acs(player))")
+                        StatCell(label: match.hasRounds ? "ACS" : "SCORE", value: "\(match.hasRounds ? match.acs(player) : player.score)")
                         StatCell(label: "K / D / A", value: "\(player.kills)/\(player.deaths)/\(player.assists)")
                         StatCell(label: "HS", value: match.headshotPercent(player).map { "\($0)%" } ?? "–")
                     }
@@ -252,7 +249,7 @@ struct Scoreboard: View {
                     HStack {
                         SectionLabel(block.title)
                         Spacer()
-                        Text("ACS").frame(width: 44, alignment: .trailing)
+                        Text(match.hasRounds ? "ACS" : "SCORE").frame(width: 50, alignment: .trailing)
                         Text("K / D / A").frame(width: 76, alignment: .trailing)
                     }
                     .font(Theme.label(8)).tracking(1)
@@ -303,8 +300,8 @@ struct Scoreboard: View {
                 }
             }
             Spacer(minLength: 4)
-            Text("\(match.acs(player))")
-                .frame(width: 44, alignment: .trailing)
+            Text("\(match.hasRounds ? match.acs(player) : player.score)")
+                .frame(width: 50, alignment: .trailing)
             Text("\(player.kills)/\(player.deaths)/\(player.assists)")
                 .frame(width: 76, alignment: .trailing)
         }

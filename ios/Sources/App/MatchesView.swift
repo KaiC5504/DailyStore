@@ -365,7 +365,7 @@ private struct StatTile<Icon: View>: View {
         .frame(maxWidth: .infinity, minHeight: 118, alignment: .bottomLeading)
         .background {
             if let background {
-                RemoteImage(url: background, contentMode: .fill)
+                FillImage(url: background)
                     .overlay(LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.75)], startPoint: .top, endPoint: .bottom))
                     .clipShape(.rect(cornerRadius: Theme.chipRadius + 4))
             }
@@ -446,16 +446,18 @@ struct MatchCard: View {
                 if let rr = summary.rrEarned {
                     RRChip(earned: rr)
                 }
-                Text("\(summary.acs) ACS")
-                    .font(.system(size: 11, weight: .bold).monospacedDigit())
-                    .foregroundStyle(Theme.textDim)
+                if summary.acs > 0 {
+                    Text("\(summary.acs) ACS")
+                        .font(.system(size: 11, weight: .bold).monospacedDigit())
+                        .foregroundStyle(Theme.textDim)
+                }
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 92)
         .background {
             ZStack(alignment: .leading) {
-                RemoteImage(url: map?.banner, contentMode: .fill)
+                FillImage(url: map?.banner)
                 LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.45), .black.opacity(0.2)],
                                startPoint: .leading, endPoint: .trailing)
                 summary.outcome.color.frame(width: 4)

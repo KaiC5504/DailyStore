@@ -15,6 +15,11 @@ ios/
     Schedule.swift             StoreClock (UTC reset maths), staleness, Wishlist.hits,
                                CompactCatalog (for the widget), Catalog.missingIDs
     History.swift              StoreHistory: one compact entry per UTC day
+    Matches.swift              Match: match details trimmed for storage, derived stats (ACS, HS%, ADR, KAST, duels)
+    MatchSummary.swift         MatchSummary (list row), CompetitiveUpdate, RankStatus, CurrentAct, MatchStats
+    MatchArchive.swift         actor: per-account match archive on disk
+    MatchSync.swift            StoreService.syncMatches / olderMatches: history -> missing details -> archive
+    MatchAssets.swift          valorant-api.com maps/agents/tiers/weapons/gear/queue names
     HTTPClient.swift           URLSession wrapper with redirects disabled
   Sources/Shared/              Compiled into BOTH the app and the widget
     SharedKeychain.swift       keychain access group, SharedState, KeychainSessionStore
@@ -26,10 +31,13 @@ ios/
     DailyStoreApp.swift        @main, RootView TabView, background task registration
     AppModel.swift             @Observable state: phase, snapshot, catalog, wishlist, log
     TodayView / NightMarketView / BundlesView / WishlistView / SettingsView / SkinDetailView
+    MatchesModel.swift         @Observable match state: archive, paging, rank, stats, filter
+    MatchesView.swift          Matches tab: rank card, RR trend, form, stats, filter chips, match cards
+    MatchDetailView.swift      match detail, RoundSheet (kill feed, loadouts), PlayerMatchSheet
     Components.swift           AmbientBackground, RemoteImage, PriceTag, TierBadge,
                                CountdownChip, ScreenTitle, FitPage, FillGrid, LoopingVideo
     LoginView.swift            WKWebView Riot login, harvests cookies
-    DemoData.swift             DEBUG sample store
+    DemoData.swift             DEBUG sample store, twelve generated matches, rank and RR history
   Sources/Widget/StoreWidget.swift   WidgetBundle + TimelineProvider
 tools/probe.py                 Windows smoke test of the Riot chain (paste cookies, hidden input)
 scripts/codemagic.py           start/watch/status Codemagic builds
@@ -48,6 +56,14 @@ StoreRefresher.current(): saved snapshot if not stale, else fetch -> didFetch:
          keep the last owned list if this fetch lacks one -> SharedState.save
          -> record store history -> wishlist alert
 AppModel / widget / background task all go through StoreRefresher.
+
+Matches (app only, never the widget or background task):
+MatchesModel.appear/refresh -> StoreService.syncMatches:
+         context() (tokens cached 45 min; the store fetch always reauths fresh)
+         -> history page 0 + competitive updates + rank (mmr + current act), in parallel
+         -> RR merged into the archive -> details for IDs not archived, 2 at a time
+         -> each match trimmed to `Match`, saved, streamed to the list as it lands
+Scrolling past the archive -> olderMatches(from: next Riot index)
 ```
 
 ## Storage: one shared keychain group, no App Group
@@ -70,9 +86,16 @@ background refresh can read them while the phone is locked):
 If the entitlement is missing (unsigned simulator builds), `SharedKeychain` falls back to
 the app's default group. `migrateLegacySession()` moves build 3's session into the group.
 
-App-only storage: `FileCache` in Caches for the full `Catalog` (`catalog.json`),
-`UserDefaults` for revealed Night Market offer IDs, the daily-reminder toggle and
-`catalogRetryAt`.
+App-only storage: `FileCache` in Caches for the full `Catalog` (`catalog.json`) and
+`MatchAssets` (`match-assets.json`), `UserDefaults` for revealed Night Market offer IDs,
+the daily-reminder toggle and `catalogRetryAt`.
+
+Match archive: `Application Support/matches/<puuid>/` (not Caches: iOS may purge Caches,
+and Riot only lists about five weeks, so this is the only copy of older games). Files:
+`index.json` (every `MatchSummary`, newest first), `details/<matchId>.json` (one `Match`,
+loaded when opened), `updates.json` (every RR update seen), `rank.json`. A trimmed
+competitive match is a small fraction of Riot's 600+ KB. Kept on sign-out; per account, so
+another account never mixes in. Not in the keychain: the widget doesn't need it.
 
 ## Caching rules
 
@@ -88,6 +111,12 @@ App-only storage: `FileCache` in Caches for the full `Catalog` (`catalog.json`),
   (`catalogRetryAt`). The full catalog is about 760 KB compressed.
 - **Images:** `URLCache.shared` 64 MB memory / 400 MB disk. The widget downsizes
   thumbnails with ImageIO because widget memory is tight.
+
+- **Matches:** synced on the first open of the Matches tab, then at most every two
+  minutes on reopen, plus pull-to-refresh. Only IDs not in the archive are downloaded, so a
+  normal refresh is a handful of small requests. Details never change, so an archived
+  match is never refetched (`Match.schema` exists for the day the stored shape changes).
+- **Match assets:** refetched when the client version changes.
 
 ## Timing
 

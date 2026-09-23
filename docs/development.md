@@ -16,7 +16,7 @@ Compile feedback only comes from CI, and Codemagic minutes are limited (500 free
 month, roughly 15 per build), so:
 
 1. Commit on `dev` and push. Actions (`.github/workflows/ios-compile.yml`) runs on every
-   branch: core package tests, XcodeGen, simulator build, launch, nine demo screenshots.
+   branch: core package tests, XcodeGen, simulator build, launch, demo screenshots.
    It takes about 11 minutes.
    ```
    gh run list --branch dev --limit 1
@@ -36,8 +36,10 @@ month, roughly 15 per build), so:
 The owner has authorised steps 1-5 without asking each time. Chain commands with `&&`.
 
 Screenshot names: `01-first-launch` (real, signed-out), then demo mode `02-today`,
-`03-night-hidden`, `04-night-revealed`, `05-bundles`, `06-detail`, `07-wishlist`,
-`08-settings`, `09-widgets`, `10-wishlist-owned` (search "Reaver", owned tags).
+`03-night-hidden` and `04-night-revealed` (the Night Market cover opened from Today),
+`05-bundles`, `06-detail`, `07-wishlist`, `08-settings`, `09-widgets`,
+`10-wishlist-owned` (search "Reaver", owned tags), `11-matches`, `12-match-detail`,
+`13-round` (round 7 sheet), `14-player` (6th scoreboard row), `15-deathmatch`.
 
 ## Local tests
 
@@ -45,8 +47,10 @@ Screenshot names: `01-first-launch` (real, signed-out), then demo mode `02-today
 cd ios/Packages/ValorantCore && swift test
 ```
 
-45 tests as of build 8 (Swift Testing, `@Test`). Fixtures are in
-`Tests/ValorantCoreTests/Support.swift`. Anything that can live in ValorantCore should,
+66 tests as of build 9 (Swift Testing, `@Test`). Fixtures are in
+`Tests/ValorantCoreTests/Support.swift` and `MatchFixtures.swift` (hand-written matches in
+the real shape; the repo is public, so never commit real match JSON with other players'
+names). Anything that can live in ValorantCore should,
 because that is the only code testable without CI. Reset/time maths, parsing, caching
 decisions and catalog lookups all have tests; add one for new logic there.
 
@@ -59,8 +63,12 @@ Gotchas on Windows: `swift test` output is noisy; filter with
 Debug builds read launch arguments so CI can screenshot without a Riot account:
 
 - `-DemoData YES`: use `DemoData.swift` (real item IDs, fake wallet) and skip Riot.
-- `-DemoTab today|night|bundles|wishlist|settings`
+- `-DemoTab today|bundles|matches|wishlist|settings`
+- `-DemoNight YES`: open the Night Market cover on launch.
 - `-DemoReveal YES`: Night Market cards start revealed.
+- `-DemoMatch N`: open the Nth match on the Matches tab (6 is the Deathmatch).
+- `-DemoRound N` / `-DemoPlayer N`: with `-DemoMatch`, open that round's sheet or the Nth
+  scoreboard row's player sheet.
 - `-DemoDetail N`: open the Nth daily skin's detail page.
 - `-DemoSearch text`: prefill the wishlist search.
 - `-DemoWidgets YES`: show the widget gallery instead of the app.

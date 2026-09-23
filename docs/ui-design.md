@@ -34,17 +34,20 @@ How it's done (`Components.swift`):
 Rules for changes: no fixed card heights on these tabs; nothing driven by scroll position
 (the pages don't scroll); wallet sits beside the title instead of its own row. Check the
 CI screenshot, which is a smaller phone than the owner's, so if it fits there it fits on
-the Pro Max. Wishlist, Settings and skin detail are allowed to scroll.
+the Pro Max. Wishlist, Settings, skin detail, Matches and match detail are allowed to scroll.
 
 ## Screens
+
+Tabs (build 9): Today · Bundles · Matches · Wishlist · Settings. The Night Market has no
+tab because it is only live some weeks; the Today tab badge counts its unrevealed cards.
 
 - **Today:** title + wallet stack, reset countdown chip and local reset time, status
   banner (loading/signed out/error), wishlist-hit banner, 2x2 skin grid (index, tier
   badge, name, price, wishlist heart), "NIGHT MARKET IS OPEN / Ends in ..." bar (taps to
-  the Night Market tab), "Updated ..." line.
-- **Night Market:** title, end countdown, "Reveal all", 2x3 grid of face-down cards that
-  flip on tap (revealed IDs remembered in UserDefaults; Riot's `IsSeen` also counts).
-  Tab badge = unrevealed count.
+  the full-screen Night Market; only there while one is live), "Updated ..." line.
+- **Night Market:** full-screen cover from the Today bar. Title with a glass close button,
+  end countdown, "Reveal all", 2x3 grid of face-down cards that flip on tap (revealed IDs
+  remembered in UserDefaults; Riot's `IsSeen` also counts).
 - **Bundles:** one card per featured bundle (banner, name, price, time left). Missing
   from valorant-api.com: first skin art on a tier glow, name guessed from the shared
   prefix of the skin names (`Catalog.collectionName`), else "New bundle". Detail: banner,
@@ -58,6 +61,26 @@ the Pro Max. Wishlist, Settings and skin detail are allowed to scroll.
   Owned skins get a mint "OWNED" tag; unless already wishlisted, a seal replaces the
   heart and the row dims. Owned skins never appear in the daily store or Night Market,
   so the tag only lives here and in bundles.
+- **Matches:** "Match History" title; rank card (tier emblem with tier-colour glow, RR
+  bar that fills on appear, RR trend chart of the last 20 ranked games drawn left to
+  right, act W/L); form strip (last 10 as pips that pop in, win % and K/D of the last 20);
+  top 3 agents and top 3 maps (games, win %, K/D; custom games excluded); queue filter
+  chips; map-banner match cards (agent, VICTORY/DEFEAT/DRAW or placement, score, K/D/A,
+  RR chip, ACS, queue, map, relative time; result-coloured edge; 3D deal-in). Games still
+  downloading show as pulsing skeleton cards. Scrolling to the end pages the archive, then
+  asks Riot for older games; the footer says when Riot has nothing older.
+- **Match detail:** zoom transition from the card. Map splash header with the result,
+  score, RR, date and length; "Your game" card (agent portrait, ACS, K/D/A, HS%, ADR,
+  first bloods, KAST); rounds strip (chip per round coloured by winner, icon for how it
+  ended, halftime divider); scoreboard by team (your team first, sorted by ACS; your row
+  tinted; MVP star; party icon for people you queued with; rank icon). Free-for-all modes
+  show one list by kills, no rounds. Every player's name#tag is shown (owner's choice;
+  the API can't tell who hid their name).
+- **Round sheet:** kill feed in time order (killer, weapon kill icon or the killer's
+  ability icon, victim; your team teal, enemies red), plant and defuse, loadouts per
+  player (weapon, armor, value, spent).
+- **Player sheet:** agent, name, rank, the same stat card, and kills/deaths against each
+  opponent in that match. Nothing is looked up about their other games.
 - **Settings:** account, region, reset time, store history day count, refresh now, notification toggles,
   Diagnostics log, widget previews (DEBUG), sign out, version.
 - **Login sheet:** Riot's page in a webview, with a hint to use the Passwords key above

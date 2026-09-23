@@ -15,7 +15,8 @@ Riot's terms list store checkers as unapproved third-party tools, so keep it per
 
 - Daily store: the four skins with tier, price, art; reset countdown in local time.
 - Wallet: VP, Radianite, Kingdom Credits.
-- Night Market: flip-to-reveal cards with discount and price, end countdown.
+- Night Market: flip-to-reveal cards with discount and price, end countdown. Opened full
+  screen from the Today bar, which only shows while one is live (no tab since build 9).
 - Featured bundles: banner, name, price, contents list with per-item prices.
 - Skin detail: chroma (colour variant) picker, level upgrade videos, drag-to-tilt art,
   wishlist toggle.
@@ -24,6 +25,10 @@ Riot's terms list store checkers as unapproved third-party tools, so keep it per
   store, so the tag matters in search and bundles only).
 - Store history: every day's store is recorded on the phone from build 8. No screen yet;
   it exists so a future "last seen" feature has data.
+- Matches (build 9): rank and RR trend, recent form, top agents and maps, every match
+  with scoreboard, round timeline, kill feed, loadouts and per-player stats. All modes,
+  filterable. Every match loaded is kept on the phone for good (Riot lists about five
+  weeks); older games load as you scroll.
 - Widget: home screen small/medium/large, lock screen rectangular/inline/circular. Fetches
   the new store itself after the reset.
 - Notifications: daily "New store is up" at the reset (local time), wishlist alert.
@@ -32,7 +37,7 @@ Riot's terms list store checkers as unapproved third-party tools, so keep it per
 - Settings: notification toggles, force refresh, Diagnostics log (no secrets), sign out.
 
 Out of scope unless the owner asks: multiple accounts, Android, App Store release,
-purchasing, accessory store. Match history is planned next (see ideas below).
+purchasing, accessory store, a match widget (declined for now on 2026-09-23).
 
 ## Status
 
@@ -62,6 +67,7 @@ Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is Codemag
 | 6 | 0.2.0 | Today/Night Market/Bundles fit on one screen; catalog refetches when the store has unknown items; wishlist search no longer capped at 60 |
 | 7 | 0.2.0 | Items valorant-api.com hasn't listed show as "New item, details coming soon"; catalog check on every app open |
 | 8 | 0.2.0 | Owned skins tagged in wishlist search, skin detail and bundles; store history recorded daily (no screen) |
+| 9 | 0.3.0 | Matches tab (rank, RR trend, stats, match detail, rounds, kill feed, player sheets, local archive); Night Market tab removed, opens full screen from Today |
 
 ## Known limitations
 
@@ -76,6 +82,10 @@ Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is Codemag
   saved. New names appear in the widget after the app has been opened.
 - The owned list comes with the once-a-day store fetch. A skin bought today shows as
   owned after the next reset, or straight away after a pull-to-refresh.
+- The match archive only starts on the first open of the Matches tab and can reach back
+  as far as Riot still lists (about five weeks). Games older than that are gone for good.
+- Matches refresh when the tab opens (at most every two minutes) or on pull-to-refresh;
+  nothing fetches them in the background.
 - Riot has blocked third-party clients by User-Agent before. If every request suddenly
   fails with 403, change `RiotAPI.userAgent` first.
 
@@ -83,8 +93,8 @@ Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is Codemag
 
 Recorded so a future session doesn't lose them. Each needs the owner's go-ahead.
 
-- Match history and match details in the app. The owner wants this next (new scope,
-  approved in principle on 2026-09-23, not planned yet).
+- A match widget (rank, last game). Would need its own refresh; declined for build 9.
+- More stats from the archive: weapon accuracy, per-map side win rates, RR per agent.
 - Accessory store (Kingdom Credits items; `AccessoryStore` is already in the response).
 - A screen for store history ("last seen" per skin, calendar). Data is being recorded.
 - Price-drop / Night Market wishlist hits highlighted in the widget.

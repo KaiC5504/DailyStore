@@ -50,6 +50,34 @@ current set is rejected (covers a crash between receiving and saving rotated coo
 | Wallet | `GET https://pd.{shard}.a.pvp.net/store/v1/wallet/{puuid}` | |
 | Owned skins | `GET https://pd.{shard}.a.pvp.net/store/v1/entitlements/{puuid}/e7c63390-eda7-46e0-bb7a-a6abdacd2433` | `Entitlements[].ItemID` = every owned skin level (level 1 included). Failure is logged and ignored; the previous list is kept. |
 
+Match history (app only, verified with `tools/probe.py --matches` on 2026-09-23; research
+checked VRY's final 2026 code and the techchrism docs, which are stale since April 2024):
+
+| Step | Request | Notes |
+| --- | --- | --- |
+| History | `GET https://pd.{shard}.a.pvp.net/match-history/v1/history/{puuid}?startIndex=N&endIndex=N+20` | `{Total, History[{MatchID, GameStartTime ms, QueueID}]}`. Pages wider than 20 fail with 400 `MATCH_HISTORY_INVALID_INDICES`. The owner's account listed 89 games going back 5 weeks. |
+| Details | `GET https://pd.{shard}.a.pvp.net/match-details/v1/matches/{matchId}` | 600+ KB for a competitive match, mostly `playerLocations`. 404 = gone, skipped. |
+| RR | `GET https://pd.{shard}.a.pvp.net/mmr/v1/players/{puuid}/competitiveupdates?startIndex=N&endIndex=N+20&queue=competitive` | `Matches[{MatchID, TierAfterUpdate, RankedRatingAfterUpdate, RankedRatingEarned, ...}]`. Same 20 cap (`MMR_INVALID_INDICES`). |
+| Rank | `GET https://pd.{shard}.a.pvp.net/mmr/v1/players/{puuid}` | `QueueSkills.competitive.SeasonalInfoBySeasonID[act].CompetitiveTier/RankedRating/NumberOfWins/NumberOfGames`. No entry = unranked this act. |
+| Current act | `GET https://shared.{shard}.a.pvp.net/content-service/v3/content` | `Seasons[]` with `IsActive` and `Type` `act`/`episode`. Same game headers. |
+
+Match details facts from real responses:
+- `matchInfo.queueID` is `""` for custom games (`provisioningFlowID` `CustomGame`). Seen
+  queues: `competitive`, `skirmish2v2`, `""`. Weapon UUIDs come uppercase.
+- Competitive has `roundResults[].playerEconomies[]` (with `subject`); other modes only
+  fill `playerStats[].economy`. `teams`, `roundResults`, `roundDamage`, `playerEconomies`
+  can be null.
+- Riot now sends `roundResults[].firstBloodPlayer`, `winningTeamRole`, `matchMvp`,
+  `teams[].mvp`, and obfuscated `TempValue*` fields (ignored).
+- `finishingDamage.damageItem` is a weapon UUID, an ability slot (`Ultimate`,
+  `Ability1`, `Ability2`, `GrenadeAbility`) or `""`. Skirmish custom games use weapons
+  valorant-api.com doesn't list; those show a generic icon.
+- Deathmatch hasn't been seen yet. The code treats anything without exactly two teams as
+  free-for-all ranked by kills.
+
+Match calls retry 429/500/502/503 twice (Retry-After, else 10 s then 20 s). Details are
+fetched two at a time with 300 ms between pairs.
+
 Game-server headers: `Authorization: Bearer`, `X-Riot-Entitlements-JWT`,
 `X-Riot-ClientPlatform` (fixed base64 PC descriptor in `RiotAPI.clientPlatform`),
 `X-Riot-ClientVersion`, and the User-Agent in `RiotAPI.userAgent` (one constant; Riot has
@@ -95,6 +123,12 @@ valorant-api.com, fetched with `?language=en-US`:
   `verticalPromoImage`, `displayNameSubText`.
 - `/v1/buddies/levels`, `/v1/sprays`, `/v1/playercards`, `/v1/playertitles`: bundle
   extras. Flex items are not fetched.
+- Matches (`MatchAssets`): `/v1/maps` keyed by `mapUrl` (equals `matchInfo.mapId`, a path,
+  not the uuid; The Range is listed twice), `/v1/agents?isPlayableCharacter=true`
+  (abilities by `slot`, `Grenade` renamed to Riot's `GrenadeAbility`),
+  `/v1/competitivetiers` (last entry is the current episode; tiers 3-27), `/v1/weapons`
+  (`killStreamIcon`), `/v1/gear` (armor), `/v1/gamemodes/queues` (queue display names;
+  `newmap` is renamed every season, so names aren't hard-coded).
 
 The site lags new releases (Champions 2026 was missing on release day; its data was still
 from client 13.05). The app handles that with `Catalog.missingIDs` and "New item" UI; see
@@ -106,3 +140,12 @@ approved key and has no images.
 `uv run tools/probe.py` runs the whole chain from Windows with a pasted Cookie header
 (hidden input). It prints step names, status codes and today's skin names, never tokens.
 Use it first when Riot changes something, before touching Swift.
+
+`uv run tools/probe.py --matches` checks the match endpoints instead: page limits, how far
+back history goes, one match per queue as a shape tree (keys, types, list sizes), game
+enum values, and whether map/agent/weapon/armor IDs resolve on valorant-api.com. It never
+prints names, tags, PUUIDs or tokens. Redirect it to a file outside the repo.
+
+Getting the Cookie header: DevTools > Network with Preserve log on, open the authorize
+URL above (the bare `auth.riotgames.com` page just errors), sign in with Stay signed in,
+load the URL again, and copy the `Cookie` request header of that `authorize` request.

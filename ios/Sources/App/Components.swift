@@ -48,6 +48,19 @@ struct RemoteImage: View {
     }
 }
 
+/// Art that fills whatever frame it is given without widening it. A `.fill` image on its
+/// own reports its overflowing size to the layout and drags the whole row wider than the screen.
+struct FillImage: View {
+    let url: URL?
+    var alignment: Alignment = .center
+
+    var body: some View {
+        Color.clear
+            .overlay(alignment: alignment) { RemoteImage(url: url, contentMode: .fill) }
+            .clipped()
+    }
+}
+
 struct PriceTag: View {
     let amount: Int
     var original: Int?
