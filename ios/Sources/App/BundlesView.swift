@@ -158,17 +158,30 @@ struct BundleDetailView: View {
     }
 
     private func rowBody(_ item: BundleItem, name: String?, icon: URL?, color: Color) -> some View {
-        HStack(spacing: 14) {
-            RemoteImage(url: icon)
-                .frame(width: item.kind == .skin ? 110 : 56, height: 56)
-                .shadow(color: color.opacity(0.5), radius: 10)
+        let isNew = name == nil
+        let color = isNew ? Theme.newItem : color
+        return HStack(spacing: 14) {
+            Group {
+                if isNew {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(Theme.newItem)
+                        .symbolEffect(.pulse, options: .repeat(.continuous))
+                } else {
+                    RemoteImage(url: icon)
+                }
+            }
+            .frame(width: item.kind == .skin ? 110 : 56, height: 56)
+            .shadow(color: color.opacity(0.5), radius: 10)
             VStack(alignment: .leading, spacing: 4) {
-                Text(name ?? "Unknown item")
+                Text(name ?? "New item")
                     .font(.subheadline.weight(.bold))
                     .lineLimit(2)
-                Text(kindLabel(item.kind))
+                Text(isNew ? "\(kindLabel(item.kind)) · DETAILS COMING SOON" : kindLabel(item.kind))
                     .font(Theme.label(9)).tracking(1.2)
-                    .foregroundStyle(Theme.textFaint)
+                    .foregroundStyle(isNew ? Theme.newItem : Theme.textFaint)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             Spacer()
             if item.discountedPrice == 0 && item.basePrice > 0 {
@@ -180,7 +193,7 @@ struct BundleDetailView: View {
         }
         .foregroundStyle(.white)
         .padding(12)
-        .glassEffect(.regular.tint(color.opacity(0.08)), in: .rect(cornerRadius: Theme.chipRadius + 4))
+        .glassEffect(.regular.tint(color.opacity(isNew ? 0.16 : 0.08)), in: .rect(cornerRadius: Theme.chipRadius + 4))
     }
 
     private func kindLabel(_ kind: ItemKind) -> String {

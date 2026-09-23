@@ -122,7 +122,7 @@ struct SkinCard: View {
                 .shadow(color: color.opacity(0.55), radius: 16, y: 6)
             VStack(alignment: .leading, spacing: 5) {
                 TierBadge(tier: tier)
-                Text((skin?.name ?? "Loading…").uppercased())
+                Text((skin?.name ?? (model.catalog == nil ? "Loading…" : "New skin")).uppercased())
                     .font(Theme.display(22))
                     .foregroundStyle(.white)
                     .lineLimit(2)

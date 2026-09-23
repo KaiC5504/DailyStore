@@ -72,11 +72,16 @@ struct SkinDetailView: View {
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 8) {
             TierBadge(tier: tier)
-            Text((skin?.name ?? "Unknown skin").uppercased())
+            Text((skin?.name ?? "New skin").uppercased())
                 .font(Theme.display(44))
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .minimumScaleFactor(0.6)
+            if skin == nil, model.catalog != nil {
+                Label("Details coming soon", systemImage: "sparkles")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.newItem)
+            }
             if let price = route.price {
                 PriceTag(amount: price, original: route.original, font: .system(size: 22, weight: .heavy).monospacedDigit())
             }

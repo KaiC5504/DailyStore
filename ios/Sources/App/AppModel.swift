@@ -82,7 +82,12 @@ final class AppModel {
         if let saved = SharedState.snapshot, saved.fetchedAt > (snapshot?.fetchedAt ?? .distantPast) {
             snapshot = saved
         }
-        if isStale { await refresh(force: true) } else { armResetTimer() }
+        if isStale {
+            await refresh(force: true)
+        } else {
+            armResetTimer()
+            if let snapshot { await loadCatalogIfNeeded(for: snapshot) }
+        }
     }
 
     func refresh(force: Bool = true) async {
@@ -200,14 +205,15 @@ final class AppModel {
         let defaults = UserDefaults.standard
         if let catalog, catalog.clientVersion == snapshot.clientVersion, !catalog.bundles.isEmpty {
             let missing = catalog.missingIDs(in: snapshot)
-            // valorant-api.com can lag a new bundle by hours, so don't redownload on every launch.
+            // valorant-api.com can lag a new release by a day or two, so every open checks again.
+            // The whole catalog is under a megabyte; the gap only stops back-to-back opens repeating it.
             let retryAt = defaults.object(forKey: "catalogRetryAt") as? Date ?? .distantPast
             guard !missing.isEmpty, Date() >= retryAt else {
                 if !isDemo { SharedState.save(CompactCatalog(catalog)) }
                 return
             }
             record("Catalog is missing \(missing.count) store items, refetching")
-            defaults.set(Date().addingTimeInterval(3600), forKey: "catalogRetryAt")
+            defaults.set(Date().addingTimeInterval(300), forKey: "catalogRetryAt")
         }
         do {
             let fresh = try await Catalog.fetch(http: http, clientVersion: snapshot.clientVersion)

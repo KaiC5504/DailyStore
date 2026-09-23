@@ -23,6 +23,8 @@ enum Theme {
     static let price = Font.system(size: 17, weight: .heavy).monospacedDigit()
 
     static let fallbackTier = Color(white: 0.55)
+    /// Items Riot sells that valorant-api.com hasn't published yet.
+    static let newItem = Color(red: 0.95, green: 0.78, blue: 0.38)
 }
 
 extension Color {

@@ -109,7 +109,7 @@ private struct NightCard: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .rotationEffect(.degrees(-10))
                     .shadow(color: color.opacity(0.6), radius: 14)
-                Text((skin?.name ?? "…").uppercased())
+                Text((skin?.name ?? (model.catalog == nil ? "…" : "New skin")).uppercased())
                     .font(Theme.display(19))
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
