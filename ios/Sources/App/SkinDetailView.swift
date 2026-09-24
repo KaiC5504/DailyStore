@@ -65,7 +65,6 @@ struct SkinDetailView: View {
                         .opacity(videoReady ? 1 : 0)
                 }
                 .clipShape(.rect(cornerRadius: Theme.cardRadius))
-                .overlay(alignment: .bottomTrailing) { soundButton }
                 .animation(.smooth(duration: 0.25), value: videoReady)
                 .transition(.opacity)
             } else {
@@ -91,6 +90,10 @@ struct SkinDetailView: View {
         .animation(.smooth, value: video)
         .onChange(of: video) { videoReady = false }
         .animation(.smooth, value: art)
+        // Outside the tilt so the drag gesture and 3D transform can't take the tap.
+        .overlay(alignment: .bottomTrailing) {
+            if video != nil { soundButton.transition(.opacity) }
+        }
         .padding(.top, 8)
     }
 

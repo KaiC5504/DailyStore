@@ -69,6 +69,7 @@ Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is Codemag
 | 8 | 0.2.0 | Owned skins tagged in wishlist search, skin detail and bundles; store history recorded daily (no screen) |
 | 9 | 0.3.0 | Matches tab (rank, RR trend, stats, match detail, rounds, kill feed, player sheets, local archive); Night Market tab removed, opens full screen from Today |
 | 10 | 0.3.1 | Player names from name-service (match details send them blank); skin videos cached on disk, play with sound (mute toggle); smoother skin detail entrance from Today |
+| 11 | 1.0.0 | First full release. Mute button fixed (toggles made while a video loads are kept; button moved out of the tilt gesture); name lookups remembered per match so hidden players aren't re-asked on every open |
 
 ## Known limitations
 

@@ -177,6 +177,8 @@ public struct Match: Codable, Equatable, Sendable, Identifiable {
     public let teams: [Team]
     public internal(set) var players: [Player]
     public let rounds: [Round]
+    /// Set once name-service has answered, so players it has no name for aren't asked about on every open.
+    public internal(set) var namesChecked: Bool?
 
     public init(schema: Int = Match.currentSchema, id: String, queue: String, isCustom: Bool, mapURL: String, mode: String,
                 start: Date, length: TimeInterval, season: String, isRanked: Bool, completion: String, mvp: String?,
@@ -293,10 +295,13 @@ public enum MatchOutcome: Codable, Hashable, Sendable {
 
 extension Match {
     /// Riot blanks `gameName`/`tagLine` in match details, so names come from name-service instead.
-    public var unnamed: [String] { players.filter { $0.name.isEmpty }.map(\.id) }
+    public var unnamed: [String] {
+        namesChecked == true ? [] : players.filter { $0.name.isEmpty }.map(\.id)
+    }
 
     public func naming(_ names: [String: PlayerName]) -> Match {
         var copy = self
+        copy.namesChecked = true
         for i in copy.players.indices {
             guard let found = names[copy.players[i].id], !found.name.isEmpty else { continue }
             copy.players[i].name = found.name

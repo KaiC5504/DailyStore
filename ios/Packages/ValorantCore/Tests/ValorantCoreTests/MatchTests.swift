@@ -283,6 +283,10 @@ import Testing
 
         #expect(filled?.player(F.mate)?.displayName == "Mate#EUW")
         #expect(await archive.match(old.id)?.player(F.mate)?.name == "Mate")
+        let reopened = try #require(await archive.match(old.id))
+        #expect(reopened.player(F.enemy1)?.name == "" && reopened.unnamed.isEmpty)
+        #expect(await service(http).fillNames(reopened, archive: archive) == nil)
+        #expect(http.requests(to: "/name-service/").count == 1)
         #expect(await service(http).fillNames(try Match.parse(Data(F.competitive.utf8)), archive: archive) == nil)
     }
 

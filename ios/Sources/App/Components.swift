@@ -204,6 +204,8 @@ struct LoopingVideo: UIViewRepresentable {
         private var readiness: NSKeyValueObservation?
         private var loading: Task<Void, Never>?
         private var audible = false
+        /// Kept apart from the player so a toggle made while the file is still downloading isn't lost.
+        private var wantsMuted = false
         private(set) var current: URL?
         var onReady: (Bool) -> Void = { _ in }
 
@@ -212,14 +214,15 @@ struct LoopingVideo: UIViewRepresentable {
         func play(_ url: URL, muted: Bool) {
             teardown()
             current = url
+            wantsMuted = muted
             loading = Task { [weak self] in
                 let file = await VideoCache.shared.file(for: url)
                 guard let self, !Task.isCancelled, self.current == url else { return }
-                self.start(file ?? url, muted: muted)
+                self.start(file ?? url)
             }
         }
 
-        private func start(_ source: URL, muted: Bool) {
+        private func start(_ source: URL) {
             let player = AVQueuePlayer()
             player.automaticallyWaitsToMinimizeStalling = false
             looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: source))
@@ -230,11 +233,12 @@ struct LoopingVideo: UIViewRepresentable {
                 Task { @MainActor in self?.onReady(ready) }
             }
             self.player = player
-            setMuted(muted)
+            setMuted(wantsMuted)
             player.play()
         }
 
         func setMuted(_ muted: Bool) {
+            wantsMuted = muted
             guard let player else { return }
             player.isMuted = muted
             // Switching straight to another video keeps the session, so other audio doesn't blip back in between.

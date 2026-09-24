@@ -16,7 +16,7 @@ settings:
     # Swift 5 language mode on purpose: strict concurrency turns first bring-up into a
     # wall of actor-isolation errors that cannot be iterated on without a Mac.
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.3.1"
+    MARKETING_VERSION: "1.0.0"
     # A default only. CI overrides this per build from the command line; App Store
     # Connect rejects a build number it has already seen.
     CURRENT_PROJECT_VERSION: "1"

@@ -76,7 +76,9 @@ Match details facts from real responses:
   2026-09-24). Names come from `PUT https://pd.{shard}.a.pvp.net/name-service/v2/players`
   with a JSON array of PUUIDs (game headers), which returns
   `[{DisplayName, Subject, GameName, TagLine}]`. Called once per downloaded match for its
-  blank players, and once when an older archived match without names is opened. A failure
+  blank players, and once when an older archived match without names is opened.
+  `Match.namesChecked` records that the lookup ran, so a player name-service has no name
+  for doesn't trigger a call on every open. A failure
   is logged and the match is saved anyway. `tools/probe.py --names` checks it, printing counts only.
 - Deathmatch hasn't been seen yet. The code treats anything without exactly two teams as
   free-for-all ranked by kills.
