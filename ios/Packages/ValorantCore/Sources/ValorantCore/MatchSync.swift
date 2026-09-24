@@ -90,7 +90,7 @@ extension StoreService {
             for (id, outcome) in results {
                 switch outcome {
                 case let .success(match?):
-                    let summary = await archive.save(match, puuid: puuid)
+                    let summary = await archive.save(await named(match, ctx: ctx), puuid: puuid)
                     result.added += 1
                     await onEvent(.saved(summary))
                 case .success(nil):
@@ -105,6 +105,23 @@ extension StoreService {
             }
         }
         return result
+    }
+
+    /// Fills in names for a match archived before name-service was used. Nil when nothing changed.
+    public func fillNames(_ match: Match, archive: MatchArchive) async -> Match? {
+        guard !match.unnamed.isEmpty, let ctx = try? await context() else { return nil }
+        let filled = await named(match, ctx: ctx)
+        guard filled != match else { return nil }
+        _ = await archive.save(filled, puuid: ctx.puuid)
+        return filled
+    }
+
+    /// A match without names is still worth saving, so a name-service failure only gets logged.
+    private func named(_ match: Match, ctx: RiotAPI.Context) async -> Match {
+        let missing = match.unnamed
+        guard !missing.isEmpty,
+              let names = await optional("Names", { try await self.api.names(ctx, puuids: missing) }) else { return match }
+        return match.naming(names)
     }
 
     /// A cached token can be revoked early; one retry with fresh tokens covers that.

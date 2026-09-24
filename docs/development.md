@@ -47,7 +47,7 @@ Screenshot names: `01-first-launch` (real, signed-out), then demo mode `02-today
 cd ios/Packages/ValorantCore && swift test
 ```
 
-66 tests as of build 9 (Swift Testing, `@Test`). Fixtures are in
+69 tests as of build 10 (Swift Testing, `@Test`). Fixtures are in
 `Tests/ValorantCoreTests/Support.swift` and `MatchFixtures.swift` (hand-written matches in
 the real shape; the repo is public, so never commit real match JSON with other players'
 names). Anything that can live in ValorantCore should,

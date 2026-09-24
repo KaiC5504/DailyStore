@@ -169,18 +169,28 @@ struct OwnedBadge: View {
     }
 }
 
-/// Muted, looping, control-free video for skin previews.
+/// Looping, control-free video for skin previews, played from `VideoCache`'s copy on disk.
+/// Streaming it straight from the CDN took seconds to start: AVPlayerLooper loads its copies
+/// of the item one by one, each over the network.
 struct LoopingVideo: UIViewRepresentable {
     let url: URL
+    var muted = false
+    @Binding var ready: Bool
 
     func makeUIView(context: Context) -> PlayerView {
         let view = PlayerView()
-        view.play(url)
+        view.onReady = { ready = $0 }
+        view.play(url, muted: muted)
         return view
     }
 
     func updateUIView(_ view: PlayerView, context: Context) {
-        if view.current != url { view.play(url) }
+        view.onReady = { ready = $0 }
+        if view.current != url {
+            view.play(url, muted: muted)
+        } else {
+            view.setMuted(muted)
+        }
     }
 
     static func dismantleUIView(_ view: PlayerView, coordinator: ()) {
@@ -191,24 +201,141 @@ struct LoopingVideo: UIViewRepresentable {
         override class var layerClass: AnyClass { AVPlayerLayer.self }
         private var player: AVQueuePlayer?
         private var looper: AVPlayerLooper?
+        private var readiness: NSKeyValueObservation?
+        private var loading: Task<Void, Never>?
+        private var audible = false
         private(set) var current: URL?
+        var onReady: (Bool) -> Void = { _ in }
 
-        func play(_ url: URL) {
-            stop()
+        private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+
+        func play(_ url: URL, muted: Bool) {
+            teardown()
             current = url
+            loading = Task { [weak self] in
+                let file = await VideoCache.shared.file(for: url)
+                guard let self, !Task.isCancelled, self.current == url else { return }
+                self.start(file ?? url, muted: muted)
+            }
+        }
+
+        private func start(_ source: URL, muted: Bool) {
             let player = AVQueuePlayer()
-            player.isMuted = true
-            looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: url))
-            (layer as! AVPlayerLayer).player = player
-            (layer as! AVPlayerLayer).videoGravity = .resizeAspect
+            player.automaticallyWaitsToMinimizeStalling = false
+            looper = AVPlayerLooper(player: player, templateItem: AVPlayerItem(url: source))
+            playerLayer.player = player
+            playerLayer.videoGravity = .resizeAspect
+            readiness = playerLayer.observe(\.isReadyForDisplay, options: [.initial, .new]) { [weak self] layer, _ in
+                let ready = layer.isReadyForDisplay
+                Task { @MainActor in self?.onReady(ready) }
+            }
             self.player = player
+            setMuted(muted)
             player.play()
         }
 
+        func setMuted(_ muted: Bool) {
+            guard let player else { return }
+            player.isMuted = muted
+            // Switching straight to another video keeps the session, so other audio doesn't blip back in between.
+            if audible == muted {
+                muted ? PreviewAudio.end() : PreviewAudio.begin()
+                audible = !muted
+            }
+        }
+
         func stop() {
+            teardown()
+            if audible {
+                PreviewAudio.end()
+                audible = false
+            }
+        }
+
+        private func teardown() {
+            loading?.cancel()
+            readiness = nil
             player?.pause()
             looper = nil
             player = nil
+            playerLayer.player = nil
+            current = nil
+        }
+    }
+}
+
+/// Previews play through the silent switch like any video app, and hand audio back to
+/// whatever was playing before once the preview goes away.
+@MainActor
+enum PreviewAudio {
+    static func begin() {
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+        try? AVAudioSession.sharedInstance().setActive(true)
+    }
+
+    static func end() {
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+}
+
+/// Skin preview videos kept in Caches so a second look starts instantly. The skin detail
+/// screen prefetches every video it can show, so the first tap usually finds it on disk too.
+actor VideoCache {
+    static let shared = VideoCache()
+
+    private let directory = URL.cachesDirectory.appending(path: "videos")
+    private let limit = 400 * 1_024 * 1_024
+    private var downloads: [URL: Task<URL?, Never>] = [:]
+    /// Prefetching skips Low Data Mode; a tap still downloads.
+    private let prefetchSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.allowsConstrainedNetworkAccess = false
+        return URLSession(configuration: config)
+    }()
+
+    /// The local copy, downloading it first if needed. Nil if the download fails.
+    func file(for url: URL) async -> URL? {
+        await download(url, session: .shared)
+    }
+
+    func prefetch(_ urls: [URL]) async {
+        for url in urls {
+            _ = await download(url, session: prefetchSession)
+        }
+    }
+
+    private func download(_ url: URL, session: URLSession) async -> URL? {
+        let target = directory.appending(path: url.pathComponents.suffix(2).joined(separator: "-"))
+        if FileManager.default.fileExists(atPath: target.path) { return target }
+        if let running = downloads[url] { return await running.value }
+        let directory = directory
+        let task = Task<URL?, Never> {
+            guard let (temp, response) = try? await session.download(from: url),
+                  (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try? FileManager.default.removeItem(at: target)
+            guard (try? FileManager.default.moveItem(at: temp, to: target)) != nil else { return nil }
+            return target
+        }
+        downloads[url] = task
+        let result = await task.value
+        downloads[url] = nil
+        if result != nil { trim() }
+        return result
+    }
+
+    /// Oldest first once the folder passes the limit; iOS may also clear Caches on its own.
+    private func trim() {
+        let keys: [URLResourceKey] = [.fileSizeKey, .contentModificationDateKey]
+        guard let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: keys) else { return }
+        let entries = files.compactMap { file -> (URL, Int, Date)? in
+            guard let values = try? file.resourceValues(forKeys: Set(keys)) else { return nil }
+            return (file, values.fileSize ?? 0, values.contentModificationDate ?? .distantPast)
+        }
+        var total = entries.reduce(0) { $0 + $1.1 }
+        for (file, size, _) in entries.sorted(by: { $0.2 < $1.2 }) where total > limit {
+            try? FileManager.default.removeItem(at: file)
+            total -= size
         }
     }
 }

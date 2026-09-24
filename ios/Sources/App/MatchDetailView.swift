@@ -47,6 +47,9 @@ struct MatchDetailView: View {
         .task {
             match = await matches.match(id)
             loaded = true
+            if let match, let filled = await matches.named(match) {
+                withAnimation(.smooth) { self.match = filled }
+            }
             #if DEBUG
             let defaults = UserDefaults.standard
             if let match, match.rounds.indices.contains(defaults.integer(forKey: "DemoRound") - 1) {
@@ -540,7 +543,7 @@ struct PlayerMatchSheet: View {
                         Text((agent?.name ?? "Agent").uppercased())
                             .font(Theme.label(10)).tracking(1.6)
                             .foregroundStyle(agent?.tint ?? Theme.accent)
-                        Text(player.name.isEmpty ? "Player" : player.name)
+                        Text(player.name.isEmpty ? "Name hidden" : player.name)
                             .font(Theme.display(34))
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)

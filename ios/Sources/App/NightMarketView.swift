@@ -54,7 +54,7 @@ struct NightMarketView: View {
             }
             .background(AmbientBackground(tint: Theme.violet, secondary: Theme.accent))
             .navigationDestination(for: SkinRoute.self) { route in
-                SkinDetailView(route: route)
+                SkinDetailView(route: route, entranceDelay: 0.45)
                     .navigationTransition(.zoom(sourceID: route.levelID, in: zoom))
             }
             .toolbarVisibility(.hidden, for: .navigationBar)

@@ -241,6 +241,51 @@ import Testing
         #expect(http.requests(to: "/match-details/").count == 1)
     }
 
+    @Test func blankNamesAreFilledFromNameService() async throws {
+        let http = F.riot()
+        http.on(F.historyRoute(0), json: F.history(["match-comp-1"], total: 1))
+        http.on("/match-details/", json: F.unnamed(F.details(id: "match-comp-1")))
+        http.on("/name-service/v2/players", json: """
+        [{"DisplayName": "", "Subject": "\(F.me.uppercased())", "GameName": "Owner", "TagLine": "0001"},
+         {"DisplayName": "", "Subject": "\(F.enemy1)", "GameName": "", "TagLine": ""}]
+        """)
+        let archive = archive()
+
+        _ = try await service(http).syncMatches(into: archive) { _ in }
+
+        let match = try #require(await archive.match("match-comp-1"))
+        #expect(match.player(F.me)?.displayName == "Owner#0001")
+        #expect(match.player(F.enemy1)?.name == "")
+        let asked = try #require(http.requests(to: "/name-service/").first)
+        #expect(asked.httpMethod == "PUT" && asked.value(forHTTPHeaderField: "X-Riot-Entitlements-JWT") == "ENT")
+        #expect(try JSONDecoder().decode([String].self, from: asked.httpBody ?? Data()).count == 4)
+    }
+
+    @Test func nameServiceFailureStillSavesTheMatch() async throws {
+        let http = F.riot()
+        http.on(F.historyRoute(0), json: F.history(["match-comp-1"], total: 1))
+        http.on("/match-details/", json: F.unnamed(F.details(id: "match-comp-1")))
+        http.on("/name-service/", status: 403, json: "{}")
+
+        let result = try await service(http).syncMatches(into: archive()) { _ in }
+
+        #expect(result.added == 1 && result.failed == 0)
+    }
+
+    @Test func archivedMatchWithoutNamesIsBackfilled() async throws {
+        let http = F.riot()
+        http.on("/name-service/", json: #"[{"Subject": "\#(F.mate)", "GameName": "Mate", "TagLine": "EUW"}]"#)
+        let archive = archive()
+        let old = try Match.parse(Data(F.unnamed(F.competitive).utf8))
+        await archive.save(old, puuid: F.me)
+
+        let filled = await service(http).fillNames(old, archive: archive)
+
+        #expect(filled?.player(F.mate)?.displayName == "Mate#EUW")
+        #expect(await archive.match(old.id)?.player(F.mate)?.name == "Mate")
+        #expect(await service(http).fillNames(try Match.parse(Data(F.competitive.utf8)), archive: archive) == nil)
+    }
+
     @Test func historyPagesStopAtRiotsTotal() {
         #expect(HistoryPage(entries: [], start: 0, total: 45).next == 20)
         #expect(HistoryPage(entries: [], start: 40, total: 45).next == nil)

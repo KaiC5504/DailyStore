@@ -53,8 +53,12 @@ tab because it is only live some weeks; the Today tab badge counts its unreveale
   prefix of the skin names (`Catalog.collectionName`), else "New bundle". Detail: banner,
   price, item rows; unknown items get the gold "New item / DETAILS COMING SOON" style;
   owned skins say "WEAPON SKIN · OWNED" in `Theme.owned` (mint).
-- **Skin detail:** big tilting art or looping muted video, chroma swatches, level
-  upgrade list with videos, price, wishlist toggle. Owned and not wishlisted: a mint "In
+- **Skin detail:** big tilting art or looping video with sound (glass speaker button,
+  remembered; plays through the silent switch and hands audio back on leave), chroma
+  swatches, level upgrade list with videos, price, wishlist toggle. Videos are downloaded
+  to Caches/videos (400 MB cap, oldest out) and prefetched on open, skipping Low Data
+  Mode; the art dims under a spinner until the first frame. From Today and the Night
+  Market (zoom transitions) the art's spin-in waits 0.45 s for the zoom to settle. Owned and not wishlisted: a mint "In
   your collection" pill replaces the toggle. Unknown skin: "New skin / Details coming soon".
 - **Wishlist:** search every skin (all words must match, no result cap, result count
   and owned count shown), saved list, wishlist-hit banner. Tab badge = hits today.
@@ -75,7 +79,8 @@ tab because it is only live some weeks; the Today tab badge counts its unreveale
   ended, halftime divider); scoreboard by team (your team first, sorted by ACS; your row
   tinted; MVP star; party icon for people you queued with; rank icon). Free-for-all modes
   show one list by kills, no rounds. Every player's name#tag is shown (owner's choice;
-  the API can't tell who hid their name).
+  the API can't tell who hid their name). Players name-service has nothing for fall back
+  to their agent name ("Name hidden" on the player sheet).
 - **Round sheet:** kill feed in time order (killer, weapon kill icon or the killer's
   ability icon, victim; your team teal, enemies red), plant and defuse, loadouts per
   player (weapon, armor, value, spent).

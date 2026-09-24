@@ -6,6 +6,7 @@
 
 Run: uv run tools/probe.py            (store)
      uv run tools/probe.py --matches  (match history, match details, rank; prints shapes only)
+     uv run tools/probe.py --names    (are names blank in match details, does name-service fill them)
 Paste the Cookie header from an authenticated auth.riotgames.com/authorize request when prompted
 (input is hidden). Nothing is written to disk; tokens are never printed.
 """
@@ -129,6 +130,9 @@ def main() -> None:
         pd = f"https://pd.{shard}.a.pvp.net"
         if "--matches" in sys.argv:
             probe_matches(http, pd, f"https://shared.{shard}.a.pvp.net", puuid, riot_headers)
+            return
+        if "--names" in sys.argv:
+            probe_names(http, pd, puuid, riot_headers)
             return
         r = http.post(f"{pd}/store/v3/storefront/{puuid}", headers=riot_headers, json={})
         step("storefront v3", r.is_success, f"HTTP {r.status_code}" + ("" if r.is_success else f" {r.text[:200]}"))
@@ -340,6 +344,30 @@ def probe_matches(http, pd, shared, puuid, headers):
             seasonal = ((mmr.get("QueueSkills") or {}).get("competitive") or {}).get("SeasonalInfoBySeasonID") or {}
             info = seasonal.get(acts[0]["ID"])
             print(f"       current act in mmr: {'yes, tier ' + str(info.get('CompetitiveTier')) if info else 'no entry'}")
+
+
+def probe_names(http, pd, puuid, headers):
+    """Counts only: names and tags are never printed."""
+    page = fetch(http, f"{pd}/match-history/v1/history/{puuid}?startIndex=0&endIndex=5", headers, "history 0-5")
+    for h in (page or {}).get("History", [])[:3]:
+        body = fetch(http, f"{pd}/match-details/v1/matches/{h['MatchID']}", headers, f"details ({h.get('QueueID')!r})")
+        if not body:
+            continue
+        players = body.get("players") or []
+        owner = next((p for p in players if p.get("subject") == puuid), {})
+        print(f"       players {len(players)}; blank gameName {sum(not p.get('gameName') for p in players)}; "
+              f"blank tagLine {sum(not p.get('tagLine') for p in players)}; owner name blank: {not owner.get('gameName')}")
+        ids = [p["subject"] for p in players]
+        time.sleep(0.4)
+        r = http.put(f"{pd}/name-service/v2/players", headers=headers, json=ids)
+        print(f"[{'OK  ' if r.is_success else 'FAIL'}] name-service v2 - HTTP {r.status_code}"
+              + ("" if r.is_success else f" {r.text[:160]}"))
+        if r.is_success:
+            rows = r.json()
+            print(f"       rows {len(rows)}; keys {sorted(rows[0]) if rows else '-'}; "
+                  f"GameName filled {sum(bool(x.get('GameName')) for x in rows)}; "
+                  f"TagLine filled {sum(bool(x.get('TagLine')) for x in rows)}; "
+                  f"subjects match {len({x.get('Subject') for x in rows} & set(ids))}/{len(ids)}")
 
 
 if __name__ == "__main__":

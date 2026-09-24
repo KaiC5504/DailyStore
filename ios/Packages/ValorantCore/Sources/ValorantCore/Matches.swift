@@ -22,8 +22,8 @@ public struct Match: Codable, Equatable, Sendable, Identifiable {
 
     public struct Player: Codable, Equatable, Sendable, Identifiable {
         public let id: String
-        public let name: String
-        public let tag: String
+        public internal(set) var name: String
+        public internal(set) var tag: String
         public let team: String
         public let agent: String
         public let tier: Int
@@ -175,7 +175,7 @@ public struct Match: Codable, Equatable, Sendable, Identifiable {
     public let completion: String
     public let mvp: String?
     public let teams: [Team]
-    public let players: [Player]
+    public internal(set) var players: [Player]
     public let rounds: [Round]
 
     public init(schema: Int = Match.currentSchema, id: String, queue: String, isCustom: Bool, mapURL: String, mode: String,
@@ -292,6 +292,19 @@ public enum MatchOutcome: Codable, Hashable, Sendable {
 }
 
 extension Match {
+    /// Riot blanks `gameName`/`tagLine` in match details, so names come from name-service instead.
+    public var unnamed: [String] { players.filter { $0.name.isEmpty }.map(\.id) }
+
+    public func naming(_ names: [String: PlayerName]) -> Match {
+        var copy = self
+        for i in copy.players.indices {
+            guard let found = names[copy.players[i].id], !found.name.isEmpty else { continue }
+            copy.players[i].name = found.name
+            copy.players[i].tag = found.tag
+        }
+        return copy
+    }
+
     public func player(_ id: String) -> Player? {
         let id = id.lowercased()
         return players.first { $0.id == id }

@@ -130,6 +130,18 @@ public struct RiotAPI: Sendable {
     }
 
     /// Nil when content-service is down; the rank then falls back to the latest update.
+    /// Keyed by lowercased PUUID. Players Riot has nothing for are left out.
+    public func names(_ ctx: Context, puuids: [String]) async throws -> [String: PlayerName] {
+        guard !puuids.isEmpty else { return [:] }
+        var request = game("https://pd.\(ctx.shard).a.pvp.net/name-service/v2/players", ctx, method: "PUT")
+        request.httpBody = try JSONEncoder().encode(puuids)
+        let rows = try JSONDecoder().decode([RawName].self, from: try await patient("Names", request)!)
+        return Dictionary(rows.compactMap { row in
+            guard let name = row.GameName, !name.isEmpty else { return nil }
+            return (row.Subject.lowercased(), PlayerName(name: name, tag: row.TagLine ?? ""))
+        }) { a, _ in a }
+    }
+
     func currentAct(_ ctx: Context) async -> CurrentAct? {
         let url = "https://shared.\(ctx.shard).a.pvp.net/content-service/v3/content"
         guard let body = try? await patient("Content", game(url, ctx)) else { return nil }
@@ -145,6 +157,12 @@ public struct RiotAPI: Sendable {
 
         let Total: Int?
         let History: [Entry]?
+    }
+
+    private struct RawName: Decodable {
+        let Subject: String
+        let GameName: String?
+        let TagLine: String?
     }
 
     private struct RawOwned: Decodable {
@@ -197,6 +215,16 @@ public struct RiotAPI: Sendable {
             throw RiotError.unexpected(step: step)
         }
         return object
+    }
+}
+
+public struct PlayerName: Codable, Hashable, Sendable {
+    public let name: String
+    public let tag: String
+
+    public init(name: String, tag: String) {
+        self.name = name
+        self.tag = tag
     }
 }
 

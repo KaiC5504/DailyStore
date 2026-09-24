@@ -135,6 +135,12 @@ enum MatchFixtures {
         "/v1/history/\(me)?startIndex=\(start)&"
     }
 
+    /// What Riot sends now: names and tags blanked in match details.
+    static func unnamed(_ json: String) -> String {
+        json.replacingOccurrences(of: #""gameName": "[^"]*", "tagLine": "[^"]*""#, with: #""gameName": "", "tagLine": """#,
+                                  options: .regularExpression)
+    }
+
     static func details(id: String, start: Int = 1790000000000) -> String {
         competitive
             .replacingOccurrences(of: "MATCH-COMP-1", with: id)

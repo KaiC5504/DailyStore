@@ -142,6 +142,12 @@ final class MatchesModel {
         return await archive?.match(id)
     }
 
+    /// Matches archived before build 10 have blank names; they get filled in the first time they're opened.
+    func named(_ match: Match) async -> Match? {
+        guard !isDemo, let archive else { return nil }
+        return await service.fillNames(match, archive: archive)
+    }
+
     func signedOut() {
         archive = nil
         puuid = nil

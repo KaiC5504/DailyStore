@@ -4,11 +4,16 @@ import ValorantCore
 struct SkinDetailView: View {
     @Environment(AppModel.self) private var model
     let route: SkinRoute
+    /// Zoom transitions pass a longer delay so the art's spin-in starts after the zoom settles
+    /// instead of both animating the same layers at once, which dropped frames.
+    var entranceDelay = 0.1
 
     @State private var chroma: SkinChroma?
     @State private var level: SkinLevel?
     @State private var tilt: CGSize = .zero
     @State private var appeared = false
+    @State private var videoReady = false
+    @AppStorage("previewSound") private var sound = true
 
     private var skin: SkinInfo? { model.catalog?.skin(route.levelID) }
     private var tier: ContentTier? { skin.flatMap { model.catalog?.tier(for: $0) } }
@@ -33,7 +38,12 @@ struct SkinDetailView: View {
         .background(AmbientBackground(tint: color, secondary: color.opacity(0.6)))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            withAnimation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.1)) { appeared = true }
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.75).delay(entranceDelay)) { appeared = true }
+        }
+        .task(id: skin?.name) {
+            guard let skin else { return }
+            let videos = skin.levels.compactMap(\.video) + skin.chromas.compactMap(\.video)
+            await VideoCache.shared.prefetch(videos)
         }
     }
 
@@ -43,14 +53,28 @@ struct SkinDetailView: View {
                 .blur(radius: 10)
                 .scaleEffect(appeared ? 1 : 0.4)
             if let video {
-                LoopingVideo(url: video)
-                    .clipShape(.rect(cornerRadius: Theme.cardRadius))
-                    .transition(.opacity)
+                ZStack {
+                    if !videoReady {
+                        RemoteImage(url: art)
+                            .padding(28)
+                            .rotationEffect(.degrees(-8))
+                            .opacity(0.3)
+                        ProgressView().tint(.white).controlSize(.large)
+                    }
+                    LoopingVideo(url: video, muted: !sound, ready: $videoReady)
+                        .opacity(videoReady ? 1 : 0)
+                }
+                .clipShape(.rect(cornerRadius: Theme.cardRadius))
+                .overlay(alignment: .bottomTrailing) { soundButton }
+                .animation(.smooth(duration: 0.25), value: videoReady)
+                .transition(.opacity)
             } else {
+                // Shadow before rotation: the shadow is drawn once and turned with the art,
+                // rather than recomputed every frame of the spin.
                 RemoteImage(url: art)
                     .padding(28)
-                    .rotationEffect(.degrees(appeared ? -8 : -30))
                     .shadow(color: color.opacity(0.6), radius: 30, y: 12)
+                    .rotationEffect(.degrees(appeared ? -8 : -30))
                     .id(art)
                     .transition(.asymmetric(insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .opacity))
             }
@@ -65,8 +89,24 @@ struct SkinDetailView: View {
                 .onEnded { _ in withAnimation(.spring(response: 0.5, dampingFraction: 0.5)) { tilt = .zero } }
         )
         .animation(.smooth, value: video)
+        .onChange(of: video) { videoReady = false }
         .animation(.smooth, value: art)
         .padding(.top, 8)
+    }
+
+    private var soundButton: some View {
+        Button {
+            sound.toggle()
+        } label: {
+            Image(systemName: sound ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                .font(.system(size: 14, weight: .bold))
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 36, height: 36)
+                .glassEffect(.regular.interactive(), in: .circle)
+        }
+        .buttonStyle(.plain)
+        .padding(10)
+        .sensoryFeedback(.selection, trigger: sound)
     }
 
     private var titleBlock: some View {

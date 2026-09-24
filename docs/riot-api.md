@@ -72,6 +72,12 @@ Match details facts from real responses:
 - `finishingDamage.damageItem` is a weapon UUID, an ability slot (`Ultimate`,
   `Ability1`, `Ability2`, `GrenadeAbility`) or `""`. Skirmish custom games use weapons
   valorant-api.com doesn't list; those show a generic icon.
+- `players[].gameName` and `tagLine` arrive blank (seen on the owner's matches in build 9,
+  2026-09-24). Names come from `PUT https://pd.{shard}.a.pvp.net/name-service/v2/players`
+  with a JSON array of PUUIDs (game headers), which returns
+  `[{DisplayName, Subject, GameName, TagLine}]`. Called once per downloaded match for its
+  blank players, and once when an older archived match without names is opened. A failure
+  is logged and the match is saved anyway. `tools/probe.py --names` checks it, printing counts only.
 - Deathmatch hasn't been seen yet. The code treats anything without exactly two teams as
   free-for-all ranked by kills.
 
