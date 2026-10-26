@@ -48,7 +48,9 @@ Screenshot names: `01-first-launch` (real, signed-out), then demo mode `02-today
 `03-night-hidden` and `04-night-revealed` (the Night Market cover opened from Today),
 `05-bundles`, `06-detail`, `07-wishlist`, `08-settings`, `09-widgets`,
 `10-wishlist-owned` (search "Reaver", owned tags), `11-matches`, `12-match-detail`,
-`13-round` (round 7 sheet), `14-player` (6th scoreboard row), `15-deathmatch`, `16-overview`.
+`13-round` (round 7 sheet), `14-player` (6th scoreboard row), `15-deathmatch`, `16-overview`,
+`17-agents`, `18-maps`, `19-guns`, `20-rounds`, `21-agent`, `22-map`, `23-match-scoreboard`,
+`24-match-duels`, `25-match-economy`.
 
 ## Local tests
 
@@ -77,6 +79,8 @@ Debug builds read launch arguments so CI can screenshot without a Riot account:
 - `-DemoNight YES`: open the Night Market cover on launch.
 - `-DemoReveal YES`: Night Market cards start revealed.
 - `-DemoSection history|overview|agents|maps|guns|rounds`: start the Matches tab on that section.
+- `-DemoAgent N` / `-DemoMap N`: open the Nth agent (most played first) or map's page.
+- `-DemoMatchTab summary|scoreboard|duels|economy`: with `-DemoMatch`, start on that tab.
 - `-DemoMatch N`: open the Nth match on the Matches tab (6 is the Deathmatch). Demo mode
   always starts on every queue, so the list keeps all twelve games.
 - `-DemoRound N` / `-DemoPlayer N`: with `-DemoMatch`, open that round's sheet or the Nth
