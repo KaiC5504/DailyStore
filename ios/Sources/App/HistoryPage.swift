@@ -6,8 +6,28 @@ struct HistoryPage: View {
     @Environment(MatchesModel.self) private var matches
     let zoom: Namespace.ID
 
+    private struct Day: Identifiable {
+        let id: Date
+        var games: [(index: Int, summary: MatchSummary)]
+    }
+
+    /// The shown games split by calendar day, keeping each card's position for its deal-in delay.
+    private var days: [Day] {
+        let calendar = Calendar.current
+        var days: [Day] = []
+        for (index, summary) in matches.shown.enumerated() {
+            let day = calendar.startOfDay(for: summary.start)
+            if days.last?.id == day {
+                days[days.count - 1].games.append((index, summary))
+            } else {
+                days.append(Day(id: day, games: [(index, summary)]))
+            }
+        }
+        return days
+    }
+
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 14) {
+        LazyVStack(alignment: .leading, spacing: 12) {
             if case let .failed(message) = matches.phase {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote.weight(.semibold))
@@ -31,18 +51,24 @@ struct HistoryPage: View {
                                            description: Text("Play a game, then pull down to refresh."))
                         .padding(.top, 20)
                 }
+            } else if matches.filtered.isEmpty && matches.shownPending.isEmpty {
+                EmptyScope()
             }
             ForEach(matches.shownPending) { entry in
                 PendingMatchCard(entry: entry)
             }
-            ForEach(Array(matches.shown.enumerated()), id: \.element.id) { index, summary in
-                NavigationLink(value: MatchRoute(id: summary.id)) {
-                    MatchCard(summary: summary, index: index)
-                        .matchedTransitionSource(id: summary.id, in: zoom)
-                }
-                .buttonStyle(PressableStyle())
-                .onAppear {
-                    if summary.id == matches.shown.last?.id { Task { await matches.loadMore() } }
+            ForEach(days) { day in
+                DayHeader(day: day.id, games: day.games.map(\.summary))
+                    .padding(.top, 6)
+                ForEach(day.games, id: \.summary.id) { index, summary in
+                    NavigationLink(value: MatchRoute(id: summary.id)) {
+                        MatchCard(summary: summary, index: index)
+                            .matchedTransitionSource(id: summary.id, in: zoom)
+                    }
+                    .buttonStyle(PressableStyle())
+                    .onAppear {
+                        if summary.id == matches.shown.last?.id { Task { await matches.loadMore() } }
+                    }
                 }
             }
             footer
@@ -70,6 +96,39 @@ struct HistoryPage: View {
     }
 }
 
+/// "TODAY 3W 1L · +38 RR · 1.58 K/D"
+private struct DayHeader: View {
+    let day: Date
+    let games: [MatchSummary]
+
+    private var title: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(day) { return "Today" }
+        if calendar.isDateInYesterday(day) { return "Yesterday" }
+        return day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+    }
+
+    private var rest: String {
+        let rr = games.compactMap(\.rrEarned)
+        let kills = games.reduce(0) { $0 + $1.kills }
+        let deaths = games.reduce(0) { $0 + $1.deaths }
+        let kd = "\(StatText.kd(Double(kills) / Double(max(deaths, 1)))) K/D"
+        guard !rr.isEmpty else { return "· " + kd }
+        return "· \(StatText.signed(rr.reduce(0, +))) RR · " + kd
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title.uppercased()).foregroundStyle(.white)
+            Text("\(games.filter { $0.outcome.isWin }.count)W").foregroundStyle(Theme.win)
+            Text("\(games.filter { $0.outcome == .loss }.count)L").foregroundStyle(Theme.loss)
+            Text(rest.uppercased()).foregroundStyle(Theme.textDim).lineLimit(1)
+        }
+        .font(Theme.label(10)).tracking(1.2)
+        .monospacedDigit()
+    }
+}
+
 struct RankCard: View {
     @Environment(MatchesModel.self) private var matches
     let rank: RankStatus
@@ -78,44 +137,40 @@ struct RankCard: View {
     private var tier: MatchAssets.RankTier? { matches.assets?.tier(rank.tier) }
     private var color: Color { tier.map { Color(rgbaHex: $0.color) } ?? Theme.textDim }
 
+    private var kicker: String {
+        var parts = [rank.act ?? "Current act"]
+        if rank.games > 0 { parts.append(StatText.wins(rank.wins, rank.games)) }
+        return parts.joined(separator: " · ").uppercased()
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 14) {
-                RemoteImage(url: tier?.icon)
-                    .frame(width: 76, height: 76)
-                    .shadow(color: color.opacity(0.7), radius: 18)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text((rank.act ?? "Current act").uppercased())
-                        .font(Theme.label(10)).tracking(1.6)
-                        .foregroundStyle(Theme.textDim)
-                    Text(rank.isRanked ? (tier?.name ?? "Rank \(rank.tier)").uppercased() : "UNRANKED")
-                        .font(Theme.display(34))
-                        .foregroundStyle(color)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                    if rank.isRanked {
-                        RRBar(rr: rank.rr, color: color)
-                    } else {
-                        Text("No ranked games this act yet")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(Theme.textDim)
-                    }
+        HStack(spacing: 12) {
+            RemoteImage(url: tier?.icon)
+                .frame(width: 56, height: 56)
+                .shadow(color: color.opacity(0.7), radius: 14)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(kicker)
+                    .font(Theme.label(9)).tracking(1.2)
+                    .foregroundStyle(Theme.textDim)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(rank.isRanked ? (tier?.name ?? "Rank \(rank.tier)").uppercased() : "UNRANKED")
+                    .font(Theme.display(28))
+                    .foregroundStyle(color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                if rank.isRanked {
+                    RRBar(rr: rank.rr, color: color)
                 }
-                Spacer(minLength: 0)
             }
             if updates.count >= 2 {
                 RRTrend(updates: Array(updates.prefix(20).reversed()), color: color)
-                    .frame(height: 74)
-            }
-            if rank.games > 0 {
-                Text("\(rank.wins)W · \(rank.games - rank.wins)L this act")
-                    .font(Theme.label(10)).tracking(1.2)
-                    .foregroundStyle(Theme.textFaint)
+                    .frame(width: 104, height: 54)
             }
         }
-        .padding(16)
+        .padding(14)
         .background {
-            RadialGradient(colors: [color.opacity(0.35), .clear], center: .topLeading, startRadius: 10, endRadius: 260)
+            RadialGradient(colors: [color.opacity(0.35), .clear], center: .topLeading, startRadius: 10, endRadius: 220)
                 .clipShape(.rect(cornerRadius: Theme.cardRadius))
         }
         .glassEffect(.regular.tint(color.opacity(0.1)), in: .rect(cornerRadius: Theme.cardRadius))
@@ -196,53 +251,83 @@ struct MatchCard: View {
 
     private var agent: MatchAssets.AgentInfo? { matches.assets?.agent(summary.agent) }
     private var map: MatchAssets.MapInfo? { matches.assets?.map(summary.mapURL) }
+    private var digest: MatchDigest? { matches.digest(summary.id) }
+
+    private var line: String {
+        var parts = [map?.name ?? "Map", agent?.name ?? "Agent", summary.start.formatted(date: .omitted, time: .shortened)]
+        // With one queue picked the header already names it.
+        if matches.scope.queue == nil {
+            parts.insert(matches.queueName(summary.isCustom ? MatchesModel.customFilter : summary.queue), at: 0)
+        }
+        return parts.joined(separator: " · ").uppercased()
+    }
+
+    private var badge: (text: String, color: Color)? {
+        guard let digest else { return nil }
+        if digest.isMVP { return ("Match MVP", Theme.gold) }
+        if digest.teamPlace == 1 { return ("Team MVP", Theme.gold) }
+        return digest.teamPlace.map { (MatchOutcome.ordinal($0), Theme.textDim) }
+    }
+
+    private var rating: (label: String, value: String) {
+        if let performance = summary.performance { return ("PS", "\(performance)") }
+        return summary.acs > 0 ? ("ACS", "\(summary.acs)") : ("PS", "–")
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
-            RemoteImage(url: agent?.icon)
-                .frame(width: 56, height: 56)
-                .background(.black.opacity(0.25), in: .rect(cornerRadius: 12))
-                .clipShape(.rect(cornerRadius: 12))
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(summary.outcome.label)
-                        .font(Theme.display(26))
-                        .foregroundStyle(summary.outcome.color)
-                    if let mine = summary.mine, let theirs = summary.theirs {
-                        Text("\(mine)–\(theirs)")
-                            .font(Theme.display(22))
-                            .monospacedDigit()
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                RemoteImage(url: agent?.icon)
+                    .frame(width: 46, height: 46)
+                    .background(.black.opacity(0.25), in: .rect(cornerRadius: 12))
+                    .clipShape(.rect(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(summary.outcome.label)
+                            .font(Theme.display(24))
+                            .foregroundStyle(summary.outcome.color)
+                        if let mine = summary.mine, let theirs = summary.theirs {
+                            Text("\(mine) : \(theirs)")
+                                .font(Theme.display(20))
+                                .monospacedDigit()
+                        }
+                    }
+                    Text(line)
+                        .font(Theme.label(8)).tracking(0.8)
+                        .foregroundStyle(Theme.textDim)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: 6) {
+                    if let rr = summary.rrEarned {
+                        RRChip(earned: rr)
+                    }
+                    if let badge {
+                        Text(badge.text.uppercased())
+                            .font(Theme.label(8)).tracking(1)
+                            .foregroundStyle(badge.color)
                     }
                 }
-                Text("\(summary.kills) / \(summary.deaths) / \(summary.assists)")
-                    .font(.system(size: 14, weight: .heavy).monospacedDigit())
-                Text("\(matches.queueName(summary.isCustom ? MatchesModel.customFilter : summary.queue).uppercased()) · \(map?.name.uppercased() ?? "MAP") · \(summary.start.formatted(.relative(presentation: .named)))")
-                    .font(Theme.label(9)).tracking(0.8)
-                    .foregroundStyle(Theme.textDim)
-                    .lineLimit(1)
             }
-            Spacer(minLength: 0)
-            VStack(alignment: .trailing, spacing: 6) {
-                if let rr = summary.rrEarned {
-                    RRChip(earned: rr)
-                }
-                if let performance = summary.performance {
-                    Text("\(performance) PS")
-                        .font(.system(size: 11, weight: .bold).monospacedDigit())
-                        .foregroundStyle(Theme.textDim)
-                } else if summary.acs > 0 {
-                    Text("\(summary.acs) ACS")
-                        .font(.system(size: 11, weight: .bold).monospacedDigit())
-                        .foregroundStyle(Theme.textDim)
-                }
+            HStack(spacing: 0) {
+                StatCell(label: "K / D / A", value: "\(summary.kills)/\(summary.deaths)/\(summary.assists)", size: 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                StatCell(label: rating.label, value: rating.value, size: 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                StatCell(label: "HS", value: StatText.percent(digest?.shots.percent(\.head).map { Int($0.rounded()) }), size: 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                StatCell(label: "ADR", value: StatText.number(digest?.adr), size: 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .padding(.leading, 58)
         }
         .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 92)
+        .frame(maxWidth: .infinity)
         .background {
             ZStack(alignment: .leading) {
                 FillImage(url: map?.banner)
-                LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.45), .black.opacity(0.2)],
+                LinearGradient(colors: [.black.opacity(0.88), .black.opacity(0.55), .black.opacity(0.3)],
                                startPoint: .leading, endPoint: .trailing)
                 summary.outcome.color.frame(width: 4)
             }
