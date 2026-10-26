@@ -13,6 +13,9 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
     public let deaths: Int
     public let assists: Int
     public let acs: Int
+    public let performance: Int?
+    /// The `Match.schema` it was built from; nil before schemas were recorded here.
+    public let schema: Int?
     public let outcome: MatchOutcome
     public let mine: Int?
     public let theirs: Int?
@@ -33,6 +36,8 @@ public struct MatchSummary: Codable, Equatable, Sendable, Identifiable {
         deaths = me?.deaths ?? 0
         assists = me?.assists ?? 0
         acs = me.map(match.acs) ?? 0
+        performance = me?.performance
+        schema = match.schema
         outcome = match.outcome(for: puuid)
         mine = score?.mine
         theirs = score?.theirs

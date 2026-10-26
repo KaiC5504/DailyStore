@@ -15,7 +15,7 @@ ios/
     Schedule.swift             StoreClock (UTC reset maths), staleness, Wishlist.hits,
                                CompactCatalog (for the widget), Catalog.missingIDs
     History.swift              StoreHistory: one compact entry per UTC day
-    Matches.swift              Match: match details trimmed for storage, derived stats (ACS, HS%, ADR, KAST, duels)
+    Matches.swift              Match: match details trimmed for storage, derived stats (APS/ACS rating, HS%, ADR, KAST, duels)
     MatchSummary.swift         MatchSummary (list row), CompetitiveUpdate, RankStatus, CurrentAct, MatchStats
     MatchArchive.swift         actor: per-account match archive on disk
     MatchSync.swift            StoreService.syncMatches / olderMatches: history -> missing details -> archive
@@ -115,7 +115,9 @@ another account never mixes in. Not in the keychain: the widget doesn't need it.
 - **Matches:** synced on the first open of the Matches tab, then at most every two
   minutes on reopen, plus pull-to-refresh. Only IDs not in the archive are downloaded, so a
   normal refresh is a handful of small requests. Details never change, so an archived
-  match is never refetched (`Match.schema` exists for the day the stored shape changes).
+  match is refetched only when `Match.currentSchema` is newer than the one it was saved
+  with (the summary records it), and only while Riot still lists it. Schema 2 added the
+  Performance Score, so the first sync after build 12 downloads the listed games again.
 - **Match assets:** refetched when the client version changes.
 
 ## Timing

@@ -21,6 +21,12 @@ public actor MatchArchive {
         return loadIndex().contains { $0.id == id }
     }
 
+    /// Archived from the current `Match` shape; older entries are worth downloading again while Riot lists them.
+    public func isCurrent(_ id: String) -> Bool {
+        let id = id.lowercased()
+        return loadIndex().contains { $0.id == id && $0.schema == Match.currentSchema }
+    }
+
     public func match(_ id: String) -> Match? {
         read(Match.self, "details/\(id.lowercased()).json")
     }

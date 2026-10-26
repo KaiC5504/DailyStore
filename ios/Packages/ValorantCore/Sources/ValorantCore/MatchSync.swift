@@ -17,7 +17,8 @@ public struct MatchSyncResult: Sendable, Equatable {
 }
 
 extension StoreService {
-    /// The newest page of history, RR and rank, then details for anything not archived yet.
+    /// The newest page of history, RR and rank, then details for anything not archived yet or
+    /// archived in an older shape.
     public func syncMatches(into archive: MatchArchive,
                             onEvent: @escaping @Sendable (MatchSyncEvent) async -> Void) async throws -> MatchSyncResult {
         try await withGameContext { ctx in
@@ -66,7 +67,7 @@ extension StoreService {
     private func download(_ entries: [HistoryEntry], ctx: RiotAPI.Context, archive: MatchArchive,
                           onEvent: @escaping @Sendable (MatchSyncEvent) async -> Void) async -> MatchSyncResult {
         var missing: [HistoryEntry] = []
-        for entry in entries where !(await archive.contains(entry.id)) {
+        for entry in entries where !(await archive.isCurrent(entry.id)) {
             missing.append(entry)
         }
         var result = MatchSyncResult()

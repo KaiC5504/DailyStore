@@ -124,7 +124,7 @@ struct PerformanceCard: View {
                     .foregroundStyle(Theme.textDim)
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 10) {
                     GridRow {
-                        StatCell(label: match.hasRounds ? "ACS" : "SCORE", value: "\(match.hasRounds ? match.acs(player) : player.score)")
+                        StatCell(label: match.ratingLabel, value: "\(match.rating(player))")
                         StatCell(label: "K / D / A", value: "\(player.kills)/\(player.deaths)/\(player.assists)")
                         StatCell(label: "HS", value: match.headshotPercent(player).map { "\($0)%" } ?? "–")
                     }
@@ -231,7 +231,7 @@ struct Scoreboard: View {
         let players: [Match.Player]
     }
 
-    /// The owner's side first, each sorted by ACS; free-for-all modes are one list by kills.
+    /// The owner's side first, each sorted by rating; free-for-all modes are one list by kills.
     static func ordered(_ match: Match, me: String) -> [Block] {
         guard match.hasSides, let mine = match.player(me)?.team else {
             return [Block(title: "Players", score: nil, color: .white,
@@ -240,7 +240,7 @@ struct Scoreboard: View {
         return match.teams.sorted { ($0.id == mine ? 0 : 1) < ($1.id == mine ? 0 : 1) }.map { team in
             Block(title: team.id == mine ? "Your team" : "Enemy team", score: team.roundsWon,
                   color: team.id == mine ? Theme.win : Theme.loss,
-                  players: match.players.filter { $0.team == team.id }.sorted { match.acs($0) > match.acs($1) })
+                  players: match.players.filter { $0.team == team.id }.sorted { match.rating($0) > match.rating($1) })
         }
     }
 
@@ -252,7 +252,7 @@ struct Scoreboard: View {
                     HStack {
                         SectionLabel(block.title)
                         Spacer()
-                        Text(match.hasRounds ? "ACS" : "SCORE").frame(width: 50, alignment: .trailing)
+                        Text(match.ratingLabel).frame(width: 50, alignment: .trailing)
                         Text("K / D / A").frame(width: 76, alignment: .trailing)
                     }
                     .font(Theme.label(8)).tracking(1)
@@ -303,7 +303,7 @@ struct Scoreboard: View {
                 }
             }
             Spacer(minLength: 4)
-            Text("\(match.hasRounds ? match.acs(player) : player.score)")
+            Text("\(match.rating(player))")
                 .frame(width: 50, alignment: .trailing)
             Text("\(player.kills)/\(player.deaths)/\(player.assists)")
                 .frame(width: 76, alignment: .trailing)

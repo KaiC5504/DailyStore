@@ -52,6 +52,22 @@ import Testing
         #expect(duels[0].kills == 2 && duels[0].deaths == 1)
     }
 
+    @Test func performanceScoreReplacesAcsWhereRiotSendsIt() throws {
+        let match = try competitive()
+        let me = try #require(match.player(F.me))
+        let mate = try #require(match.player(F.mate))
+        #expect(me.performance == 288 && mate.performance == nil)
+        #expect(match.rating(me) == 288 && match.rating(mate) == match.acs(mate))
+        #expect(match.ratingLabel == "APS")
+        let summary = MatchSummary(match: match, puuid: F.me)
+        #expect(summary.performance == 288 && summary.acs == 200 && summary.schema == Match.currentSchema)
+
+        let deathmatch = try Match.parse(Data(F.deathmatch.utf8))
+        #expect(deathmatch.ratingLabel == "SCORE")
+        let player = try #require(deathmatch.players.first)
+        #expect(deathmatch.rating(player) == player.score)
+    }
+
     @Test func kastCountsTradesButNotUntradedDeaths() throws {
         let match = try competitive()
         #expect(match.kast(match.player(F.enemy2)!) == 67)
@@ -143,6 +159,7 @@ import Testing
         await archive.save(newer, puuid: F.me)
         #expect(await archive.summaries().map(\.id) == ["match-comp-1", "match-dm-1"])
         #expect(await archive.contains("MATCH-COMP-1"))
+        #expect(await archive.isCurrent("MATCH-COMP-1"))
         #expect(await archive.match("match-comp-1") == newer)
     }
 
@@ -207,6 +224,24 @@ import Testing
         #expect(second.added == 0 && second.next == nil)
         #expect(http.requests(to: "/match-details/").count == 1)
         #expect(http.requests(to: "auth.riotgames.com/authorize").count == 1)
+    }
+
+    @Test func matchesArchivedInAnOlderShapeAreDownloadedAgain() async throws {
+        let http = F.riot()
+        http.on(F.historyRoute(0), json: F.history(["match-comp-1"], total: 1))
+        http.on("/match-details/", json: F.details(id: "match-comp-1"))
+        let archive = archive()
+        var old = try Match.parse(Data(F.competitive.utf8))
+        old.schema = 1
+        await archive.save(old, puuid: F.me)
+        #expect(await archive.isCurrent("match-comp-1") == false)
+
+        let result = try await service(http).syncMatches(into: archive) { _ in }
+
+        #expect(result.added == 1)
+        #expect(http.requests(to: "/match-details/").count == 1)
+        #expect(await archive.isCurrent("match-comp-1"))
+        #expect(await archive.summaries().map(\.id) == ["match-comp-1"])
     }
 
     @Test func rateLimitIsRetriedAndOneBadMatchDoesNotStopTheRest() async throws {

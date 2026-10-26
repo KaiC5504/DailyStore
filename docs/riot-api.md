@@ -68,7 +68,13 @@ Match details facts from real responses:
   fill `playerStats[].economy`. `teams`, `roundResults`, `roundDamage`, `playerEconomies`
   can be null.
 - Riot now sends `roundResults[].firstBloodPlayer`, `winningTeamRole`, `matchMvp`,
-  `teams[].mvp`, and obfuscated `TempValue*` fields (ignored).
+  `teams[].mvp`, and obfuscated `TempValue*` fields.
+- `players[].scores.TempValueF` is the Performance Score (APS, 0-500, patch 13.06), which
+  replaced ACS in the client. It matched the client to the point on nine of the owner's
+  games and is the only field that ranks the match MVP first in all ten checked
+  (`tools/probe.py --aps`, 2026-10-26). The app rounds it. Other `scores` fields seen:
+  `A` damage per round (`stats.TempValueA` is total damage), `H` capped at 500 (likely a
+  component), `T` = `{V: 0, R: 250, U: 500}` (the scale). The rest are unidentified.
 - `finishingDamage.damageItem` is a weapon UUID, an ability slot (`Ultimate`,
   `Ability1`, `Ability2`, `GrenadeAbility`) or `""`. Skirmish custom games use weapons
   valorant-api.com doesn't list; those show a generic icon.

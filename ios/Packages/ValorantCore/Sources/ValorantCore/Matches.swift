@@ -4,7 +4,8 @@ import Foundation
 /// over 600 KB raw (mostly player positions on every kill), so the archive keeps this instead.
 public struct Match: Codable, Equatable, Sendable, Identifiable {
     /// Bumped when the stored shape changes, so old archive entries can be refetched while Riot still has them.
-    public static let currentSchema = 1
+    /// 2: the Performance Score.
+    public static let currentSchema = 2
 
     public struct Team: Codable, Equatable, Sendable {
         public let id: String
@@ -33,9 +34,12 @@ public struct Match: Codable, Equatable, Sendable, Identifiable {
         public let deaths: Int
         public let assists: Int
         public let rounds: Int
+        /// Riot's 0-500 Performance Score (patch 13.06), which replaced ACS in the client. Nil for
+        /// older matches and modes without one.
+        public let performance: Int?
 
         public init(id: String, name: String, tag: String, team: String, agent: String, tier: Int, party: String,
-                    score: Int, kills: Int, deaths: Int, assists: Int, rounds: Int) {
+                    score: Int, kills: Int, deaths: Int, assists: Int, rounds: Int, performance: Int? = nil) {
             self.id = id
             self.name = name
             self.tag = tag
@@ -48,6 +52,7 @@ public struct Match: Codable, Equatable, Sendable, Identifiable {
             self.deaths = deaths
             self.assists = assists
             self.rounds = rounds
+            self.performance = performance
         }
 
         public var displayName: String { tag.isEmpty ? name : "\(name)#\(tag)" }
@@ -271,7 +276,8 @@ extension Match {
                     kills: $0.stats?.kills ?? 0,
                     deaths: $0.stats?.deaths ?? 0,
                     assists: $0.stats?.assists ?? 0,
-                    rounds: $0.stats?.roundsPlayed ?? 0
+                    rounds: $0.stats?.roundsPlayed ?? 0,
+                    performance: $0.scores?.performance.map { Int($0.rounded()) }
                 )
             },
             rounds: rounds.sorted { $0.number < $1.number }
@@ -343,6 +349,16 @@ extension Match {
 
     public func acs(_ player: Player) -> Int {
         player.rounds > 0 ? Int((Double(player.score) / Double(player.rounds)).rounded()) : 0
+    }
+
+    /// What the client ranks players by: the Performance Score since patch 13.06, ACS before it,
+    /// and the plain score in modes without rounds.
+    public func rating(_ player: Player) -> Int {
+        player.performance ?? (hasRounds ? acs(player) : player.score)
+    }
+
+    public var ratingLabel: String {
+        players.contains { $0.performance != nil } ? "APS" : hasRounds ? "ACS" : "SCORE"
     }
 
     public func hits(by id: String) -> [Hit] {
@@ -437,6 +453,14 @@ struct RawMatch: Decodable {
         let assists: Int?
     }
 
+    /// Riot obfuscates these names. TempValueF matched the client's Performance Score on nine
+    /// games checked with `tools/probe.py --aps` (2026-10-26).
+    struct Scores: Decodable {
+        let performance: Double?
+
+        enum CodingKeys: String, CodingKey { case performance = "TempValueF" }
+    }
+
     struct Player: Decodable {
         let subject: String
         let gameName: String?
@@ -447,6 +471,7 @@ struct RawMatch: Decodable {
         let competitiveTier: Int?
         let isObserver: Bool?
         let stats: Stats?
+        let scores: Scores?
     }
 
     struct Team: Decodable {

@@ -13,12 +13,14 @@ enum MatchFixtures {
     static let vandal = "9C82E19D-4575-0200-1A81-3EACF00CF872"
     static let heavyArmor = "822BCAB2-40A2-324E-C137-E09195AD7692"
 
-    static func player(_ id: String, team: String, agent: String, score: Int, k: Int, d: Int, a: Int, observer: Bool = false) -> String {
-        """
+    static func player(_ id: String, team: String, agent: String, score: Int, k: Int, d: Int, a: Int, observer: Bool = false,
+                       performance: Double? = nil) -> String {
+        let extra = performance.map { #", "TempValueF": \#($0)"# } ?? ""
+        return """
         {"subject": "\(id.uppercased())", "gameName": "Player\(id.prefix(2))", "tagLine": "\(id.prefix(3))", "teamId": "\(team)",
          "partyId": "party-\(team)", "characterId": "\(agent)", "competitiveTier": 18, "isObserver": \(observer), "accountLevel": 100,
          "stats": {"score": \(score), "roundsPlayed": 3, "kills": \(k), "deaths": \(d), "assists": \(a), "playtimeMillis": 1, "TempValueA": 9},
-         "roundDamage": null, "scores": {"TempValueA": 1.5}}
+         "roundDamage": null, "scores": {"TempValueA": 1.5\(extra), "TempValueT": {"TempValueR": 250, "TempValueU": 500, "TempValueV": 0}}}
         """
     }
 
@@ -52,7 +54,7 @@ enum MatchFixtures {
         "queueID": "competitive", "provisioningFlowID": "Matchmaking", "gameStartMillis": 1790000000000, "gameLengthMillis": 2280000,
         "seasonId": "8102CD81-43A0-D0D7-BD59-47B8FE9BED1B", "isRanked": true, "isCompleted": true, "completionState": "Completed", "premierMatchInfo": {}},
       "players": [
-        \(player(me, team: "Blue", agent: jett, score: 600, k: 3, d: 1, a: 1)),
+        \(player(me, team: "Blue", agent: jett, score: 600, k: 3, d: 1, a: 1, performance: 287.6)),
         \(player(mate, team: "Blue", agent: sova, score: 300, k: 1, d: 2, a: 1)),
         \(player(enemy1, team: "Red", agent: sova, score: 400, k: 1, d: 3, a: 0)),
         \(player(enemy2, team: "Red", agent: jett, score: 200, k: 2, d: 1, a: 0)),

@@ -157,6 +157,11 @@ extension DemoData {
         slot == 0 ? me : String(format: "00000000-dead-beef-0000-%012d", slot + 1)
     }
 
+    /// The newest eight demo games are "after patch 13.06" and carry a Performance Score; older ones show ACS.
+    private static func performance(acs: Int, assists: Int, _ rng: inout Rng) -> Int {
+        min(500, acs + assists * 6 + 20 + rng.next(60))
+    }
+
     private static func makeMatch(_ index: Int, _ spec: Spec) -> Match {
         var rng = Rng(seed: UInt64(index + 7))
         let start = Date().addingTimeInterval(TimeInterval(-(index * 5 + 1) * 3600))
@@ -251,7 +256,9 @@ extension DemoData {
                          tier: spec.queue == "competitive" ? 16 + rng.next(4) : 0,
                          party: slot == 0 || slot == 2 ? "demo-party" : "p\(slot)",
                          score: score[id, default: 0], kills: kills[id, default: 0], deaths: deaths[id, default: 0],
-                         assists: assists[id, default: 0], rounds: count)
+                         assists: assists[id, default: 0], rounds: count,
+                         performance: index < 8 ? performance(acs: score[id, default: 0] / count,
+                                                              assists: assists[id, default: 0], &rng) : nil)
         }
         return Match(
             id: id, queue: spec.queue, isCustom: spec.custom, mapURL: spec.map, mode: "", start: start,

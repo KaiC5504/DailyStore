@@ -70,13 +70,13 @@ tab because it is only live some weeks; the Today tab badge counts its unreveale
   right, act W/L); form strip (last 10 as pips that pop in, win % and K/D of the last 20);
   top 3 agents and top 3 maps (games, win %, K/D; custom games excluded); queue filter
   chips; map-banner match cards (agent, VICTORY/DEFEAT/DRAW or placement, score, K/D/A,
-  RR chip, ACS, queue, map, relative time; result-coloured edge; 3D deal-in). Games still
+  RR chip, APS (ACS for games before patch 13.06), queue, map, relative time; result-coloured edge; 3D deal-in). Games still
   downloading show as pulsing skeleton cards. Scrolling to the end pages the archive, then
   asks Riot for older games; the footer says when Riot has nothing older.
 - **Match detail:** zoom transition from the card. Map splash header with the result,
-  score, RR, date and length; "Your game" card (agent portrait, ACS, K/D/A, HS%, ADR,
+  score, RR, date and length; "Your game" card (agent portrait, APS or ACS, K/D/A, HS%, ADR,
   first bloods, KAST); rounds strip (chip per round coloured by winner, icon for how it
-  ended, halftime divider); scoreboard by team (your team first, sorted by ACS; your row
+  ended, halftime divider); scoreboard by team (your team first, sorted by APS, or ACS before 13.06; your row
   tinted; MVP star; party icon for people you queued with; rank icon). Free-for-all modes
   show one list by kills, no rounds. Every player's name#tag is shown (owner's choice;
   the API can't tell who hid their name). Players name-service has nothing for fall back

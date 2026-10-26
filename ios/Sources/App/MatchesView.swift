@@ -448,7 +448,11 @@ struct MatchCard: View {
                 if let rr = summary.rrEarned {
                     RRChip(earned: rr)
                 }
-                if summary.acs > 0 {
+                if let performance = summary.performance {
+                    Text("\(performance) APS")
+                        .font(.system(size: 11, weight: .bold).monospacedDigit())
+                        .foregroundStyle(Theme.textDim)
+                } else if summary.acs > 0 {
                     Text("\(summary.acs) ACS")
                         .font(.system(size: 11, weight: .bold).monospacedDigit())
                         .foregroundStyle(Theme.textDim)
