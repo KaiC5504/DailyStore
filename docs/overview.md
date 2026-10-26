@@ -56,7 +56,7 @@ AutoFill covers it instead. See `decisions.md`.
 
 ## Build history
 
-Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is Codemagic's.
+Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is picked by `testflight.yml`.
 
 | Build | Version | What changed |
 | --- | --- | --- |

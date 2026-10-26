@@ -1,45 +1,52 @@
 # TestFlight pipeline
 
-Windows (code) → push → GitHub Actions (unsigned simulator build + screenshot) →
-Codemagic (signed build) → TestFlight → phone.
+Windows (code) → local compile check → push → GitHub Actions `ios-compile.yml`
+(unsigned simulator build + screenshots) → GitHub Actions `testflight.yml` (signed build,
+upload, wait for Apple) → TestFlight → phone.
 
-The shape is copied from Backdrop and NextStop. Nothing here needs a Mac. The owner
-tests only on TestFlight, so a change is not verified until it is on the phone.
+Nothing here needs a Mac. The owner tests only on TestFlight, so a change is not verified
+until it is on the phone. The full playbook, including every manual step and known
+failures, is the global `ios-testflight` skill.
+
+Codemagic signed builds 1-11. It was retired on 2026-10-26: its free queue often waited
+longer than the build, and GitHub's macOS runners are free on a public repo.
 
 ## Files
 
 | File | Job |
 | --- | --- |
-| `codemagic.yaml` | The signed build. Generates the Xcode project, creates signing files, builds the IPA, uploads to App Store Connect. |
-| `scripts/codemagic.py` | Start and watch Codemagic builds from Windows. Token comes from `~/.codemagic-token`, never from the repo. |
+| `.github/workflows/testflight.yml` | The signed build. Runs only when dispatched, only on `main`: generates the Xcode project, fetches signing files for the app and the widget, builds the IPA, uploads, then waits until Apple has processed it. |
+| `scripts/testflight.py` | Start and watch signed builds from Windows. Refuses to start unless the `testflight` environment is locked to `main` with its secrets in place. |
+| `scripts/testflight-requirements.txt` | Hash-pinned codemagic-cli-tools (the open-source signing and upload CLI; no Codemagic account involved). |
 | `ios/project.yml` | XcodeGen spec. The `.xcodeproj` is generated on the build machine and never committed. |
 | `ios/Sources/App/Assets.xcassets/AppIcon.appiconset/icon-1024.png` | App icon (fanned glass cards) from `scripts/make_icon.py`. Uploads without a 1024 icon are rejected. |
-| `.github/workflows/ios-compile.yml` | Free compile check: core tests, simulator build, launch, nine demo-mode screenshots. Runs on every branch for pushes that touch `ios/`. |
+| `.github/workflows/ios-compile.yml` | Free compile check: core tests, simulator build, launch, demo-mode screenshots. Runs on every branch for pushes that touch `ios/`. |
 | `tools/check-app.sh`, `tools/app-check/` | Local compile check before pushing: the app and widget sources built with SwiftPM in WSL against xtool's iOS SDK. Mirrors the targets in `ios/project.yml`; keep it in step. |
 
 Identity used everywhere: app name `DailyStore`, scheme `DailyStore`, bundle id
-`com.kaichuan.dailystore`. Changing any of these means changing `codemagic.yaml`,
-`ios/project.yml` and the Actions workflow together.
+`com.kaichuan.dailystore`, App Store Connect Apple ID `6815139973`. Changing any of these
+means changing `testflight.yml`, `ios/project.yml` and the compile workflow together.
 
 The widget extension is `DailyStoreWidget`, bundle id `com.kaichuan.dailystore.widget`.
-Codemagic fetches (and on first run creates) a profile for each bundle id separately.
-App and widget share data through the keychain group
-`$(AppIdentifierPrefix)com.kaichuan.dailystore.shared`, not an App Group. App Store
-profiles already allow `TEAMID.*` keychain groups, so this needs no work in the portal.
-An App Group would mean registering it by hand in the portal, since the API can't.
-Both targets' `CFBundleShortVersionString` and `CFBundleVersion` must match.
+`testflight.yml` fetches a profile for each bundle id separately. App and widget share
+data through the keychain group `$(AppIdentifierPrefix)com.kaichuan.dailystore.shared`,
+not an App Group. App Store profiles already allow `TEAMID.*` keychain groups, so this
+needs no work in the portal. An App Group would mean registering it by hand in the
+portal, since the API can't. Both targets' `CFBundleShortVersionString` and
+`CFBundleVersion` must match.
 
-Debug builds accept `-DemoData YES` (plus `-DemoTab`, `-DemoReveal`, `-DemoDetail`,
-`-DemoWidgets`), so the Actions run can screenshot every screen without a Riot account.
+Debug builds accept `-DemoData YES` and friends (see `development.md`), so the compile
+check can screenshot every screen without a Riot account.
 
 ## Pipeline-critical settings in ios/project.yml
 
-Keep these when building out the real app. Each one was learned the hard way.
+Keep these. Each one was learned the hard way.
 
-- `CODE_SIGN_STYLE: Automatic` and no `configFiles:`. Codemagic writes the team in; a
-  project-level xcconfig breaks its signing step.
-- `CFBundleVersion: $(CURRENT_PROJECT_VERSION)`. Codemagic sets the build number per
-  run. App Store Connect rejects a build number it has already seen.
+- `CODE_SIGN_STYLE: Automatic` and no `configFiles:`. `xcode-project use-profiles`
+  writes the team in, and a project-level xcconfig crashes it.
+- `CFBundleVersion: $(CURRENT_PROJECT_VERSION)`. The workflow passes the build number
+  per run, `max(latest in App Store Connect, BUILD_NUMBER_FLOOR) + 1`. App Store Connect
+  rejects a build number it has already seen.
 - `ITSAppUsesNonExemptEncryption: false`. Without it every build sits in TestFlight as
   "Missing Compliance".
 - All four `UISupportedInterfaceOrientations~ipad` entries. Upload validation demands
@@ -47,71 +54,38 @@ Keep these when building out the real app. Each one was learned the hard way.
 - The declared `schemes:` block. `xcodebuild -scheme` needs it because Xcode never opens
   this project.
 - `CFBundleIconName: AppIcon` and a 1024x1024 PNG with no alpha channel in the icon set.
-- If source moves into a shared Swift package (Backdrop has `core/`), add that folder to
-  `when.changeset.includes` in `codemagic.yaml` and to `paths` in the Actions workflow.
+- If source moves into another Swift package, add it to `paths` in `ios-compile.yml`
+  and to `tools/app-check/`.
 
-## Account-side pieces (already exist)
+## Secrets and the public log
 
-- Codemagic App Store Connect integration named `NextStop ASC key`. Team-level, shared
-  by every app.
-- Codemagic environment group `code_signing` with `CERT_KEY_B64` (the distribution
-  certificate's private key, base64). If it turns out to be app-level rather than
-  team-level, copy the value from Backdrop's app settings into a group of the same name
-  on this app. Never paste it anywhere else.
-- Codemagic API token in `~/.codemagic-token` on the Windows machine.
+The repo is public, so the build log is public too.
 
-## One-time setup
+- The GitHub environment `testflight` can only be used from `main`. It holds
+  `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_IDENTIFIER`,
+  `APP_STORE_CONNECT_PRIVATE_KEY` (the team's `GitHub Actions` API key, shared by every
+  app), `CERT_KEY_B64` (the distribution certificate's private key, base64 because a PEM
+  pasted into a web form loses its line breaks) and `SIGNING_NAME` (masks the legal name
+  in the certificate). Check with `gh secret list --env testflight -R KaiC5504/DailyStore`.
+- Secrets reach only the steps that need them. Never upload the IPA or Xcode logs, never
+  `set -x`.
+- A normal build only finds the existing certificate and profiles. `start
+  --create-signing` registers a new bundle id or profile (a new extension, a changed
+  capability) or renews an expired certificate.
 
-Claude does:
-
-1. Commit and push `main` to a GitHub repo `KaiC5504/DailyStore`. Public keeps macOS
-   Actions minutes free, as with Backdrop. Private works too but macOS minutes bill at
-   10x against the free quota.
-2. Wait for the Actions run: `gh run list --branch main --limit 1`, then
-   `gh run watch <id> --exit-status`.
-
-Owner does (Claude cannot):
-
-3. Codemagic → Apps → Add application → GitHub → `DailyStore` → select `codemagic.yaml`.
-   In the app's settings confirm the `NextStop ASC key` integration and the
-   `code_signing` group are visible.
-4. App Store Connect → My Apps → "+" → New App: platform iOS, name `DailyStore` (if
-   taken, `Daily Store`), primary language English, bundle id `com.kaichuan.dailystore`,
-   SKU `dailystore`. If the bundle id is not in the dropdown, do step 6 first: the first
-   Codemagic build registers it, then come back.
-5. App Store Connect → DailyStore → TestFlight → Internal Testing → add yourself.
-
-Claude does:
-
-6. `python scripts/codemagic.py start main` then `python scripts/codemagic.py watch`.
-   Expected: status `finished`, an IPA artifact, "Publishing to App Store Connect"
-   succeeded.
-7. Report the TestFlight build number and what to check on the phone.
-
-## Shipping a build after that
+## Shipping a build
 
 Iterate on `dev` first (see `development.md`); main only gets fast-forwarded once the
-Actions run on `dev` is green and the screenshots look right.
+compile check on `dev` is green and the screenshots look right.
 
 ```
-git checkout main && git merge --ff-only dev
-git push origin main
-gh run list --branch main --limit 1        # then gh run watch <id> --exit-status
-python scripts/codemagic.py status         # nothing already running?
-python scripts/codemagic.py start main
-python scripts/codemagic.py watch
+git checkout main && git merge --ff-only dev && git push origin main && git checkout dev
+python scripts/testflight.py start
+python scripts/testflight.py watch <id>     # in the background; about 15-20 min
 ```
 
-The push trigger in `codemagic.yaml` never fired for Backdrop, so treat the manual
-start as the normal path. Internal testers get the build as soon as Apple finishes
-processing. `submit_to_testflight: false` only skips external beta review.
-
-## Gotchas baked into codemagic.yaml
-
-- No `ios_signing:` block. It only fetches existing files and fails on a fresh bundle
-  id. `fetch-signing-files --create` registers the bundle id and profile instead.
-- `CERT_KEY_B64` travels as base64 because a PEM pasted into Codemagic's web form loses
-  its line breaks.
-- `xcode: latest` because the project targets iOS 26.
-- If `fetch-signing-files` fails, the watcher prints the failing step's log. Usual
-  causes: certificate key format, integration name mismatch, no app record yet.
+Green means Apple has processed the build, so it is installable from TestFlight within
+minutes. The build number is in the run summary and the "Pick the build number" step.
+After any change to `testflight.yml` or the scripts, run `start --dry-run` first: it
+signs and checks the IPA without uploading. On failure, check the skill's
+`reference/troubleshooting.md` before debugging from scratch.

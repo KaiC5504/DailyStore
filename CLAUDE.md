@@ -3,13 +3,14 @@
 Personal iOS app (one user, TestFlight only) that shows the VALORANT daily store, Night
 Market, bundles and wallet without logging in every day. Swift 6 toolchain / SwiftUI,
 iOS 26, Liquid Glass. Development happens on Windows; there is no Mac. Every build is
-compiled by GitHub Actions and signed by Codemagic.
+compiled, signed and uploaded by GitHub Actions. Load the global `ios-testflight` skill
+before touching signing, `testflight.yml`, `ios/project.yml` or the compile workflow.
 
 Read `docs/README.md` first. It indexes everything a new session needs.
 
 ## Rules that are not up for debate
 
-- Never commit secrets: Riot cookies/tokens, the Codemagic token, signing keys. Riot
+- Never commit secrets: Riot cookies/tokens, App Store Connect keys, signing keys. Riot
   cookies are a password that already passed 2FA; they live only in the iOS Keychain and
   are never logged, printed or sent anywhere but Riot.
 - The app never surveils the user. No analytics, no tracking, no third-party SDKs.
@@ -24,9 +25,12 @@ Read `docs/README.md` first. It indexes everything a new session needs.
    seconds) until it says OK. Push. Wait for the GitHub Actions run
    (`gh run watch <id> --exit-status`).
 2. Download the `simulator-screenshots` artifact and look at every screen you touched.
-3. `git checkout main && git merge --ff-only dev && git push`, then
-   `python scripts/codemagic.py start main` and `python scripts/codemagic.py watch`.
+3. `git checkout main && git merge --ff-only dev && git push && git checkout dev`, then
+   `python scripts/testflight.py start` and `python scripts/testflight.py watch <id>` in
+   the background. Green means Apple has processed the build. After any change to
+   `testflight.yml`, run `start --dry-run` first.
 4. Report the TestFlight build number with test steps the owner can do on the phone.
 
-The owner has authorised commit, push, Actions and Codemagic runs without asking.
+The owner has authorised commit, push and Actions runs, signed builds included, without
+asking. Never start a signed build before the compile check is green.
 Details in `docs/development.md`.

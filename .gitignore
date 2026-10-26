@@ -13,8 +13,8 @@ __pycache__/
 *.cookies
 .env
 
-# Signing secrets. Never committed, not even temporarily. Codemagic holds the signing
-# key and the App Store Connect key; nothing in this repo needs either.
+# Signing secrets. Never committed, not even temporarily. The GitHub `testflight`
+# environment holds the signing key and the App Store Connect key.
 .env.*
 *token*.txt
 *.p8

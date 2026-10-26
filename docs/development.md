@@ -14,8 +14,7 @@ Windows 11, no Mac. Tools on the owner's machine:
 
 ## The loop
 
-Codemagic minutes are limited (500 free a month, roughly 15 per build), and a CI round
-takes 11 minutes, so:
+A CI round takes 11 minutes and a signed build about 20, so:
 
 0. Before every push that touches `ios/`, compile locally:
    ```
@@ -39,8 +38,9 @@ takes 11 minutes, so:
    phone is an iPhone 17 Pro Max (larger).
 3. When green and the pixels look right: `git checkout main && git merge --ff-only dev &&
    git push origin main`.
-4. `python scripts/codemagic.py start main` then `python scripts/codemagic.py watch`.
-   About 12-15 minutes. The Codemagic push trigger is unreliable; always start by hand.
+4. `python scripts/testflight.py start` then `python scripts/testflight.py watch <id>`
+   in the background. About 15-20 minutes; green means Apple has processed the build.
+   Details in `testflight-pipeline.md`.
 5. Tell the owner the build number, what changed, how it works, and test steps.
 
 The owner has authorised steps 1-5 without asking each time. Chain commands with `&&`.
@@ -100,8 +100,8 @@ path and a screenshot line in the workflow.
 ## Security
 
 - `.gitignore` excludes `*.cookies`, `.env*`, keys, profiles, `*token*.txt`.
-- The Codemagic token is `~/.codemagic-token`. `CERT_KEY_B64` lives only in the Codemagic
-  `code_signing` group.
+- The App Store Connect key and `CERT_KEY_B64` live only in the GitHub `testflight`
+  environment (main only) and the owner's password manager.
 - The Diagnostics log and `probe.py` must never print cookies or tokens. Log step names
   and HTTP status codes only.
 

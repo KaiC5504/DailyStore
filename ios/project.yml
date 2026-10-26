@@ -8,7 +8,7 @@ options:
   groupSortPosition: top
 
 # No `configFiles:` — a project-level xcconfig comes out of XcodeGen as a file reference
-# with no parent group, and Codemagic's signing step dies reading it. The team is written
+# with no parent group, and `xcode-project use-profiles` dies reading it. The team is written
 # in by `xcode-project use-profiles`; the build number comes from the command line.
 
 settings:

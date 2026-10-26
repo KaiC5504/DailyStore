@@ -28,9 +28,10 @@ Each entry: what was chosen, why, and what not to redo. Newest last.
    notification's trigger is in UTC, so it follows the owner's time zone and DST with no
    settings or rescheduling.
 
-8. **XcodeGen + Codemagic + GitHub Actions.** No Mac. Actions (free on a public repo)
-   compiles, tests and screenshots every push; Codemagic (limited minutes) only signs and
-   uploads from `main`. The `.xcodeproj` is never committed.
+8. **XcodeGen + GitHub Actions.** No Mac. Actions (free on a public repo) compiles,
+   tests and screenshots every push, and signs and uploads from `main` when dispatched.
+   The `.xcodeproj` is never committed. Codemagic signed builds 1-11 and was dropped on
+   2026-10-26: its free queue often waited longer than the build. Don't go back to it.
 
 9. **Swift 5 language mode in the Xcode targets.** Strict concurrency errors can't be
    iterated on efficiently when every compile is an 11-minute CI run. The core package

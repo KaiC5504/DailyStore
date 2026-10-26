@@ -40,7 +40,7 @@ ios/
     DemoData.swift             DEBUG sample store, twelve generated matches, rank and RR history
   Sources/Widget/StoreWidget.swift   WidgetBundle + TimelineProvider
 tools/probe.py                 Windows smoke test of the Riot chain (paste cookies, hidden input)
-scripts/codemagic.py           start/watch/status Codemagic builds
+scripts/testflight.py          start/watch/status signed TestFlight builds
 scripts/make_icon.py           generates the app icon PNG
 ```
 
