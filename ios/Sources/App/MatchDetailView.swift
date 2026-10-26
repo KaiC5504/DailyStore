@@ -148,18 +148,6 @@ struct PerformanceCard: View {
     }
 }
 
-private struct StatCell: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(Theme.label(8)).tracking(1).foregroundStyle(Theme.textFaint)
-            Text(value).font(Theme.display(24)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
-        }
-    }
-}
-
 private struct RoundsStrip: View {
     let match: Match
     let me: String
