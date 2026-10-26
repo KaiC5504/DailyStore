@@ -115,6 +115,7 @@ struct MatchesView: View {
         switch section {
         case .history: HistoryPage(zoom: zoom)
         case .overview: OverviewPage()
+        case .agents: AgentsPage()
         default: ContentUnavailableView("Soon", systemImage: "chart.bar").padding(.top, 60)
         }
     }

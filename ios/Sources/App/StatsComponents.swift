@@ -121,6 +121,54 @@ struct EmptyScope: View {
     }
 }
 
+/// Wins then losses in one bar; `scale` sets its length against the longest bar in the list.
+struct WinLossBar: View {
+    let wins: Int
+    let losses: Int
+    var scale: Double = 1
+    var delay: Double = 0
+    @State private var grown = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            let total = max(wins + losses, 1)
+            let length = proxy.size.width * max(scale, 0.04)
+            HStack(spacing: 2) {
+                if wins > 0 {
+                    Capsule().fill(Theme.win).frame(width: length * CGFloat(wins) / CGFloat(total))
+                }
+                if losses > 0 {
+                    Capsule().fill(Theme.loss.opacity(0.85)).frame(width: length * CGFloat(losses) / CGFloat(total))
+                }
+            }
+            .scaleEffect(x: grown ? 1 : 0.02, anchor: .leading)
+        }
+        .frame(height: 7)
+        .onAppear {
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.8).delay(0.15 + delay)) { grown = true }
+        }
+    }
+}
+
+/// Expands a list cut at its first rows.
+struct SeeAllButton: View {
+    let count: Int
+    @Binding var expanded: Bool
+
+    var body: some View {
+        Button {
+            withAnimation(.snappy) { expanded.toggle() }
+        } label: {
+            Text(expanded ? "SHOW LESS" : "SEE ALL \(count)")
+                .font(Theme.label(9)).tracking(1.2)
+                .foregroundStyle(Theme.textDim)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 extension View {
     /// The glass card every stats section sits on.
     func statCard(padding: CGFloat = 16) -> some View {
