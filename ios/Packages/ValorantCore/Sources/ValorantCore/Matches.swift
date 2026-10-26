@@ -326,6 +326,9 @@ extension Match {
 
     public var hasRounds: Bool { hasSides && !rounds.isEmpty }
 
+    /// After a surrender Riot fills the rest of the game with "Surrendered" rounds that nobody played.
+    public var playedRounds: [Round] { rounds.filter { $0.result != "Surrendered" } }
+
     public func team(_ id: String) -> Team? { teams.first { $0.id == id } }
 
     public func outcome(for puuid: String) -> MatchOutcome {
@@ -390,7 +393,7 @@ extension Match {
 
     public func kastRounds(_ player: Player) -> (counted: Int, played: Int)? {
         guard hasRounds else { return nil }
-        let played = rounds.filter { round in round.players.contains { $0.id == player.id } }
+        let played = playedRounds.filter { round in round.players.contains { $0.id == player.id } }
         guard !played.isEmpty else { return nil }
         let team = player.team
         let counted = played.filter { round in

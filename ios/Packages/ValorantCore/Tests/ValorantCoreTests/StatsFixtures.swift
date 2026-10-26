@@ -58,6 +58,30 @@ enum StatsFixtures {
                      rounds: rounds)
     }
 
+    /// The same game as Riot sends it after a surrender, with the owner's own ultimate also killing them
+    /// once round 3 is already won. Riot lists both; neither should change a stat.
+    static func surrendered() -> Match {
+        let base = match()
+        var rounds = base.rounds
+        let r = rounds[2]
+        rounds[2] = Match.Round(number: r.number, winner: r.winner, result: r.result, winnerRole: r.winnerRole,
+                                ceremony: r.ceremony, planter: r.planter, plantSite: r.plantSite, plantTime: r.plantTime,
+                                defuser: nil, defuseTime: nil, firstBlood: r.firstBlood,
+                                kills: r.kills + [Match.Kill(time: 70000, killer: me, victim: me, assistants: [],
+                                                             item: "Ultimate", kind: "Ability")],
+                                players: r.players)
+        rounds.append(Match.Round(number: 4, winner: "Blue", result: "Surrendered", winnerRole: "Attacker", ceremony: "",
+                                  planter: nil, plantSite: nil, plantTime: nil, defuser: nil, defuseTime: nil,
+                                  firstBlood: nil, kills: [],
+                                  players: [me, mate, e1, e2].map {
+                                      Match.RoundPlayer(id: $0, score: 0, loadout: 0, spent: 0, remaining: 0, weapon: "",
+                                                        armor: "", hits: [])
+                                  }))
+        return Match(id: base.id, queue: base.queue, isCustom: false, mapURL: base.mapURL, mode: "", start: base.start,
+                     length: base.length, season: base.season, isRanked: true, completion: "Surrendered", mvp: me,
+                     teams: base.teams, players: base.players, rounds: rounds)
+    }
+
     static func deathmatch() -> Match {
         Match(id: "stats-dm", queue: "deathmatch", isCustom: false, mapURL: ascent, mode: "", start: Date(), length: 540,
               season: "act-5", isRanked: false, completion: "Completed", mvp: nil, teams: [],

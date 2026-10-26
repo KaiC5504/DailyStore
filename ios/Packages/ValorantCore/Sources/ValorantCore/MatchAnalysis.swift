@@ -79,12 +79,18 @@ extension Match {
         return nil
     }
 
+    /// Riot also lists you as the killer when your own ultimate or the spike kills you or a teammate.
+    public func enemyKills(by id: String, in round: Round) -> [Kill] {
+        let team = player(id)?.team
+        return round.kills.filter { $0.killer == id && $0.victim != id && player($0.victim)?.team != team }
+    }
+
     public func kills(by id: String, in round: Round) -> Int {
-        round.kills.filter { $0.killer == id }.count
+        enemyKills(by: id, in: round).count
     }
 
     public func firstDeaths(_ player: Player) -> Int {
-        rounds.filter { $0.kills.first?.victim == player.id }.count
+        playedRounds.filter { $0.kills.first?.victim == player.id }.count
     }
 
     public func damageTaken(_ player: Player) -> Int {
@@ -103,7 +109,7 @@ extension Match {
 
     /// Rounds with two kills or more.
     public func multiKillRounds(_ player: Player) -> Int {
-        rounds.filter { kills(by: player.id, in: $0) >= 2 }.count
+        playedRounds.filter { kills(by: player.id, in: $0) >= 2 }.count
     }
 
     /// Damage per 1,000 credits spent.
@@ -116,7 +122,7 @@ extension Match {
 
     public func moments(for id: String) -> [Moment] {
         guard hasRounds, let team = player(id)?.team else { return [] }
-        return rounds.flatMap { round -> [Moment] in
+        return playedRounds.flatMap { round -> [Moment] in
             var kinds: [Moment.Kind] = []
             switch kills(by: id, in: round) {
             case 5...: kinds.append(.ace)

@@ -8,8 +8,10 @@ Run: uv run tools/probe.py            (store)
      uv run tools/probe.py --matches  (match history, match details, rank; prints shapes only)
      uv run tools/probe.py --names    (are names blank in match details, does name-service fill them)
      uv run tools/probe.py --aps      (your own TempValue* fields per recent match, to find the Performance Score)
+     uv run tools/probe.py --dump DIR (raw details of your last 20 matches into DIR, for checking stats offline)
 Paste the Cookie header from an authenticated auth.riotgames.com/authorize request when prompted
-(input is hidden). Nothing is written to disk; tokens are never printed.
+(input is hidden). Only --dump writes to disk; tokens are never printed. Dumped matches hold other
+players' names, so --dump refuses a folder inside the repo, which is public.
 """
 
 import base64
@@ -137,6 +139,9 @@ def main() -> None:
             return
         if "--aps" in sys.argv:
             probe_aps(http, pd, puuid, riot_headers)
+            return
+        if "--dump" in sys.argv:
+            dump_matches(http, pd, puuid, riot_headers, sys.argv[sys.argv.index("--dump") + 1])
             return
         r = http.post(f"{pd}/store/v3/storefront/{puuid}", headers=riot_headers, json={})
         step("storefront v3", r.is_success, f"HTTP {r.status_code}" + ("" if r.is_success else f" {r.text[:200]}"))
@@ -450,6 +455,29 @@ def probe_aps(http, pd, puuid, headers):
         for path, numbers in sorted(per_round.items()):
             print(f"  roundResults[].playerStats[].{path}: {len(numbers)} rounds, sum {sum(numbers)}, "
                   f"avg {sum(numbers) / len(numbers):.1f}")
+
+
+def dump_matches(http, pd, puuid, headers, folder):
+    folder = os.path.abspath(folder)
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    try:
+        inside = os.path.commonpath([folder, repo]) == repo
+    except ValueError:  # another drive
+        inside = False
+    step("dump folder is outside the repo", not inside, folder)
+    os.makedirs(folder, exist_ok=True)
+    with open(os.path.join(folder, "me.txt"), "w") as f:
+        f.write(puuid)
+    page = fetch(http, f"{pd}/match-history/v1/history/{puuid}?startIndex=0&endIndex=20", headers, "history 0-20")
+    saved = 0
+    for h in (page or {}).get("History", []):
+        r = http.get(f"{pd}/match-details/v1/matches/{h['MatchID']}", headers=headers)
+        time.sleep(0.4)
+        if r.is_success:
+            with open(os.path.join(folder, f"{h['MatchID'].lower()}.json"), "wb") as f:
+                f.write(r.content)
+            saved += 1
+    step("matches saved", saved > 0, f"{saved} into {folder}")
 
 
 if __name__ == "__main__":

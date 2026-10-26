@@ -155,9 +155,9 @@ public struct MatchDigest: Codable, Equatable, Sendable, Identifiable {
         firstKills = match.firstBloods(me)
         firstDeaths = match.firstDeaths(me)
         kast = match.kastRounds(me)?.counted ?? 0
-        startSide = match.rounds.first.flatMap { match.side(of: team, in: $0) }
+        startSide = match.playedRounds.first.flatMap { match.side(of: team, in: $0) }
 
-        for round in match.rounds {
+        for round in match.playedRounds {
             guard let mine = round.players.first(where: { $0.id == me.id }) else { continue }
             let won = round.winner == team
             spent += mine.spent
@@ -166,7 +166,7 @@ public struct MatchDigest: Codable, Equatable, Sendable, Identifiable {
                 shots.add(hit)
                 if !mine.weapon.isEmpty { guns[mine.weapon, default: Gun()].shots.add(hit) }
             }
-            for kill in round.kills where kill.killer == me.id {
+            for kill in match.enemyKills(by: me.id, in: round) {
                 let gun = kill.kind == "Ability" ? "ability" : kill.item
                 if !gun.isEmpty { guns[gun, default: Gun()].kills += 1 }
             }

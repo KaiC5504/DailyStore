@@ -49,6 +49,16 @@ import Testing
     @Test func momentsListClutchesAndBigRounds() {
         #expect(match.moments(for: F.me) == [Moment(round: 2, kind: .clutch(2))])
     }
+
+    @Test func surrenderFillersAndSelfKillsDoNotCount() {
+        let surrendered = F.surrendered()
+        let me = surrendered.player(F.me)!
+        #expect(surrendered.playedRounds.count == 4)
+        #expect(surrendered.kills(by: F.me, in: surrendered.rounds[2]) == 2)
+        #expect(surrendered.moments(for: F.me) == [Moment(round: 2, kind: .clutch(2))])
+        #expect(surrendered.kast(me) == 75 && surrendered.multiKillRounds(me) == 2)
+        #expect(MatchDigest(match: surrendered, puuid: F.me) == MatchDigest(match: F.match(), puuid: F.me))
+    }
 }
 
 @Suite struct MatchDigestTests {
