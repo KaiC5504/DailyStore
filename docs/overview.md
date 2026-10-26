@@ -70,6 +70,7 @@ Version is `MARKETING_VERSION` in `ios/project.yml`; the build number is picked 
 | 9 | 0.3.0 | Matches tab (rank, RR trend, stats, match detail, rounds, kill feed, player sheets, local archive); Night Market tab removed, opens full screen from Today |
 | 10 | 0.3.1 | Player names from name-service (match details send them blank); skin videos cached on disk, play with sound (mute toggle); smoother skin detail entrance from Today |
 | 11 | 1.0.0 | First full release. Mute button fixed (toggles made while a video loads are kept; button moved out of the tilt gesture); name lookups remembered per match so hidden players aren't re-asked on every open |
+| 12 | 1.0.0 | Matches stats inside the Matches tab: scope menu (act and queue) and History · Overview · Agents · Maps · Guns · Rounds sections, agent and map pages, match detail tabs (Summary, Scoreboard, Duels, Economy); per-match digests built from the archive; Performance Score shown as PS; match downloads survive leaving the tab |
 
 ## Known limitations
 
