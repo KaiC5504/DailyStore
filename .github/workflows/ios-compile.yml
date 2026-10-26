@@ -1,7 +1,7 @@
 name: iOS compile check
 
 # Unsigned simulator build: app build, launch, one screenshot. Needs no Apple account.
-# The signed device build lives in codemagic.yaml.
+# The signed device build is testflight.yml.
 
 on:
   push:
