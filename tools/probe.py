@@ -7,6 +7,7 @@
 Run: uv run tools/probe.py            (store)
      uv run tools/probe.py --matches  (match history, match details, rank; prints shapes only)
      uv run tools/probe.py --names    (are names blank in match details, does name-service fill them)
+     uv run tools/probe.py --aps      (your own TempValue* fields per recent match, to find the Performance Score)
 Paste the Cookie header from an authenticated auth.riotgames.com/authorize request when prompted
 (input is hidden). Nothing is written to disk; tokens are never printed.
 """
@@ -133,6 +134,9 @@ def main() -> None:
             return
         if "--names" in sys.argv:
             probe_names(http, pd, puuid, riot_headers)
+            return
+        if "--aps" in sys.argv:
+            probe_aps(http, pd, puuid, riot_headers)
             return
         r = http.post(f"{pd}/store/v3/storefront/{puuid}", headers=riot_headers, json={})
         step("storefront v3", r.is_success, f"HTTP {r.status_code}" + ("" if r.is_success else f" {r.text[:200]}"))
@@ -368,6 +372,84 @@ def probe_names(http, pd, puuid, headers):
                   f"GameName filled {sum(bool(x.get('GameName')) for x in rows)}; "
                   f"TagLine filled {sum(bool(x.get('TagLine')) for x in rows)}; "
                   f"subjects match {len({x.get('Subject') for x in rows} & set(ids))}/{len(ids)}")
+
+
+TEMP_VALUE = re.compile(r"^tempvalue", re.IGNORECASE)
+
+
+def temp_values(value, path=""):
+    """(path, number) for every TempValue* key under value; list indexes are dropped from the path."""
+    if isinstance(value, dict):
+        for k, v in value.items():
+            here = f"{path}.{k}" if path else k
+            if TEMP_VALUE.match(k) and isinstance(v, (int, float)) and not isinstance(v, bool):
+                yield here, v
+            else:
+                yield from temp_values(v, here)
+    elif isinstance(value, list):
+        for item in value:
+            yield from temp_values(item, f"{path}[]")
+
+
+def find_key(value, name):
+    if isinstance(value, dict):
+        if name in value:
+            return value[name]
+        value = list(value.values())
+    if isinstance(value, list):
+        for item in value:
+            found = find_key(item, name)
+            if found is not None:
+                return found
+    return None
+
+
+def probe_aps(http, pd, puuid, headers):
+    """Your own numbers only; other players appear as ranks, never names or values."""
+    maps = {m["mapUrl"]: m["displayName"] for m in http.get("https://valorant-api.com/v1/maps").json()["data"]}
+    page = fetch(http, f"{pd}/match-history/v1/history/{puuid}?startIndex=0&endIndex=10", headers, "history 0-10")
+    for h in (page or {}).get("History", []):
+        body = fetch(http, f"{pd}/match-details/v1/matches/{h['MatchID']}", headers, "details", quiet=True)
+        if not body:
+            continue
+        info = body.get("matchInfo") or {}
+        players = body.get("players") or []
+        me = next((p for p in players if p.get("subject") == puuid), None)
+        if not me:
+            continue
+        stats = me.get("stats") or {}
+        rounds = stats.get("roundsPlayed") or 0
+        team = next((t for t in body.get("teams") or [] if t.get("teamId") == me.get("teamId")), {})
+        started = time.strftime("%Y-%m-%d %H:%M", time.localtime((info.get("gameStartMillis") or 0) / 1000))
+        print(f"\n{started}  {maps.get(info.get('mapId'), '?')}  {info.get('queueID') or 'custom'}  "
+              f"{'won' if team.get('won') else 'lost'}  K/D/A {stats.get('kills')}/{stats.get('deaths')}/"
+              f"{stats.get('assists')}  ACS {round(stats.get('score', 0) / rounds) if rounds else '-'}")
+        match_mvp = find_key({k: v for k, v in body.items() if k != "players"}, "matchMvp")
+        team_mvps = {t.get("mvp") for t in body.get("teams") or []} - {None}
+        print(f"  match MVP: {'you' if match_mvp == puuid else 'someone else' if match_mvp else 'not sent'};"
+              f"  team MVP: {'you' if puuid in team_mvps else 'no' if team_mvps else 'not sent'}")
+
+        mine = defaultdict(list)
+        for path, number in temp_values(me):
+            mine[path].append(number)
+        per_round = defaultdict(list)
+        for r in body.get("roundResults") or []:
+            for s in r.get("playerStats") or []:
+                if s.get("subject") == puuid:
+                    for path, number in temp_values(s):
+                        per_round[path].append(number)
+        if not mine and not per_round:
+            print("  no TempValue fields on your player")
+        for path, numbers in sorted(mine.items()):
+            # If this is the Performance Score, the match MVP should rank first on it.
+            ranking = sorted(players, key=lambda p: -sum(n for q, n in temp_values(p) if q == path))
+            top_is_mvp = "?" if not match_mvp else "yes" if ranking[0].get("subject") == match_mvp else "no"
+            place = next(i for i, p in enumerate(ranking, 1) if p.get("subject") == puuid)
+            shown = numbers[0] if len(numbers) == 1 else numbers
+            print(f"  players.{path} = {shown}   your rank {place}/{len(players)}, top player is match MVP: {top_is_mvp}")
+        for path, numbers in sorted(per_round.items()):
+            print(f"  roundResults[].playerStats[].{path}: {len(numbers)} rounds, sum {sum(numbers)}, "
+                  f"avg {sum(numbers) / len(numbers):.1f}")
 
 
 if __name__ == "__main__":

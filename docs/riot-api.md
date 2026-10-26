@@ -154,6 +154,14 @@ back history goes, one match per queue as a shape tree (keys, types, list sizes)
 enum values, and whether map/agent/weapon/armor IDs resolve on valorant-api.com. It never
 prints names, tags, PUUIDs or tokens. Redirect it to a file outside the repo.
 
+`uv run tools/probe.py --aps` hunts for the Performance Score (patch 13.06, 0-500, replaced
+ACS in the client; Riot hasn't published the formula). For the last 10 matches it prints
+map, start time, result, K/D/A, ACS, whether you were match or team MVP, and every
+`TempValue*` number on your player and your round stats. For each player-level field it
+also ranks all players by it and says whether the top one is the match MVP: the real
+score should put the MVP first every time. Other players appear only as ranks. Compare
+the values with the score each match shows in the client.
+
 Getting the Cookie header: DevTools > Network with Preserve log on, open the authorize
 URL above (the bare `auth.riotgames.com` page just errors), sign in with Stay signed in,
 load the URL again, and copy the `Cookie` request header of that `authorize` request.
