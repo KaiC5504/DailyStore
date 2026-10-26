@@ -59,7 +59,7 @@ private struct BuyColumns: View {
                             .font(.system(size: 14, weight: .heavy).monospacedDigit())
                         RoundedRectangle(cornerRadius: 8)
                             .fill(Theme.win.opacity(rate >= 50 ? 1 : 0.45).gradient)
-                            .frame(height: max(CGFloat(rate) * 1.2, 4))
+                            .frame(height: max(CGFloat(rate) * 1.3, 4))
                             .scaleEffect(y: grown ? 1 : 0.02, anchor: .bottom)
                             .animation(.spring(response: 0.7, dampingFraction: 0.75).delay(0.1 + Double(index) * 0.06), value: grown)
                         Text(buy.name.uppercased()).font(Theme.label(8)).tracking(1).foregroundStyle(Theme.textDim)
@@ -69,7 +69,6 @@ private struct BuyColumns: View {
                     .frame(maxWidth: .infinity)
                 }
             }
-            .frame(height: 190, alignment: .bottom)
         }
         .statCard()
         .onAppear { grown = true }

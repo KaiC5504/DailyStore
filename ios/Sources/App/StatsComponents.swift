@@ -49,10 +49,11 @@ struct PillTabs<T: Hashable>: View {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { selection = item.value }
         } label: {
             Text(item.title.uppercased())
-                .font(Theme.label(10)).tracking(1.1)
+                .font(Theme.label(10)).tracking(scrolls ? 1.1 : 0.4)
                 .foregroundStyle(on ? Theme.ink : .white.opacity(0.85))
                 .lineLimit(1)
-                .padding(.horizontal, 14)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, scrolls ? 14 : 6)
                 .padding(.vertical, 9)
                 .frame(maxWidth: scrolls ? nil : .infinity)
                 .background {

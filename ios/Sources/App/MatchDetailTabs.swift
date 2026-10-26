@@ -119,6 +119,9 @@ struct Scoreboard: View {
                 .padding(.trailing, 6)
             }
             .scrollIndicators(.hidden)
+            // Fades the cut-off column so the table reads as scrollable.
+            .mask(LinearGradient(stops: [.init(color: .black, location: 0.9), .init(color: .clear, location: 1)],
+                                 startPoint: .leading, endPoint: .trailing))
         }
         .statCard(padding: 10)
     }

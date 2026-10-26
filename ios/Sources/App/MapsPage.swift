@@ -146,7 +146,9 @@ private struct MapTile: View {
             Text(StatText.percent(rate))
                 .font(.system(size: 10, weight: .bold).monospacedDigit())
                 .foregroundStyle(Theme.textDim)
-                .frame(width: 30, alignment: .trailing)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(width: 34, alignment: .trailing)
         }
     }
 }
