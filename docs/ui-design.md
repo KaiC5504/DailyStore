@@ -78,7 +78,8 @@ tab because it is only live some weeks; the Today tab badge counts its unreveale
     map · agent · time (queue first when the scope is every queue), RR chip, badge (Match
     MVP or Team MVP in gold, else place on your team), and K/D/A, PS (ACS before 13.06), HS
     and ADR; result-coloured edge; 3D deal-in. Games still downloading show as pulsing
-    skeletons. The end of the list pages the archive, then Riot, but only under "All time".
+    skeletons. The end of the list pages the archive, then Riot; under "This act" Riot is only
+    asked until the oldest saved game is from an earlier act.
   - **Overview:** win donut that draws in (win % and W/L) beside K/D, Avg PS, HS% and ADR;
     a strip of KAST, DDΔ, games and time played; the Playstyle hexagon (aim = HS% on 0–40,
     entry = FK/FD on 0–2, damage = ADR on 0–220, consistency = KAST on 40–90%, clutch = clutch

@@ -57,9 +57,10 @@ extension Match {
         return loadouts.reduce(0, +) / loadouts.count
     }
 
+    /// Nil in modes without buying, Spike Rush included, so their rounds never count as pistols.
     public func buy(of team: String, in round: Round) -> Buy? {
-        if isPistol(round) { return .pistol }
         guard let loadout = teamLoadout(team, in: round) else { return nil }
+        if isPistol(round) { return .pistol }
         return loadout < 2000 ? .eco : loadout < 3900 ? .force : .full
     }
 
@@ -89,8 +90,16 @@ extension Match {
         enemyKills(by: id, in: round).count
     }
 
+    /// The round's opening duel. Riot's own first blood also names teamkills and falls.
+    public func firstKill(in round: Round) -> Kill? {
+        round.kills.first { kill in
+            guard kill.killer != kill.victim, let killer = player(kill.killer) else { return false }
+            return killer.team != player(kill.victim)?.team
+        }
+    }
+
     public func firstDeaths(_ player: Player) -> Int {
-        playedRounds.filter { $0.kills.first?.victim == player.id }.count
+        playedRounds.filter { firstKill(in: $0)?.victim == player.id }.count
     }
 
     public func damageTaken(_ player: Player) -> Int {

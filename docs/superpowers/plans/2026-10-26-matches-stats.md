@@ -30,7 +30,7 @@
 2. **Games without per-shot data** (older matches, odd modes). HS%, ADR and gun HS show "–", not 0%. ADR averages only over games that have hits. Test: `gamesWithoutHitsLeaveHeadshotsAndAdrBlank` (Task 3).
 3. **A big archive on first launch after the update.** The backfill reads every details file once, and later launches read only `digests.json`. Test: `backfillRunsOnce` (Task 4).
 4. **Rounds whose side Riot doesn't say** (no `winnerRole`, no plant). They are left out of attack and defense, not counted as defense. Test: `roundWithoutRoleOrPlantHasNoSide` (Task 1).
-5. **History scoped to "This act" at the bottom of the list.** Older games belong to older acts, so the list must not page Riot forever. `loadMore` asks Riot only when the act scope is "All time". Manual check in Task 7, step 4.
+5. **History scoped to "This act" at the bottom of the list.** The list must not page Riot forever for games it won't show. `loadMore` asks Riot under "All time", or under "This act" while the oldest saved game is still from this act (changed after review: a fresh install would otherwise never get older games of this act). Manual check in Task 7, step 4.
 
 ## File Structure
 
@@ -564,7 +564,7 @@ Rules:
 
 - `handle(.saved)` becomes `async` and fetches `archive.digest(summary.id)`, so streamed cards get HS and ADR straight away.
 - `reload` loads digests with `archive.digests(puuid:)` and sets `digestsReady`.
-- `loadMore` pages Riot only when `scope.act == .all` (Review Focus 5).
+- `loadMore` pages Riot under `.all`, or under `.current` while the oldest digest is from the current act (Review Focus 5).
 - Demo:
   - `DemoData.rank` gets `actID: "demo"`, and the demo matches already use season "demo".
   - Demo rounds set `winnerRole`: Blue attacks the first half and swaps at `halftime`.

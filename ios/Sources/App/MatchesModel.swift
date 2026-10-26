@@ -25,6 +25,8 @@ final class MatchesModel {
     /// Digests in the current scope, newest first.
     private(set) var scoped: [MatchDigest] = []
     private(set) var career = CareerStats([])
+    /// Observed, so cards drawn before the first launch's digests are built pick up their HS and ADR.
+    private var digestByID: [String: MatchDigest] = [:]
     /// Listed by Riot, details still downloading.
     private(set) var pending: [HistoryEntry] = []
     private(set) var rank: RankStatus? {
@@ -58,7 +60,6 @@ final class MatchesModel {
     @ObservationIgnored private var nextRiotIndex: Int? = RiotAPI.pageSize
     @ObservationIgnored private var lastSync: Date?
     @ObservationIgnored private var syncTask: Task<Void, Never>?
-    @ObservationIgnored private var digestByID: [String: MatchDigest] = [:]
 
     init(service: StoreService, isDemo: Bool, log: @escaping (String) -> Void) {
         self.service = service
@@ -187,13 +188,14 @@ final class MatchesModel {
     }
 
     /// Shows the next page of the archive, and asks Riot for older games once the archive runs out.
-    /// Older games belong to older acts, so a list scoped to this act never pages Riot.
+    /// Scoped to this act, Riot is only asked while the oldest saved game is still from this act.
     func loadMore() async {
         if visibleCount < filtered.count {
             visibleCount += Self.pageSize
             return
         }
-        guard !isDemo, scope.act == .all, !loadingOlder, let start = nextRiotIndex, let archive else {
+        let reachesBack = scope.act == .all || digests.last.map { $0.season == currentAct } ?? true
+        guard !isDemo, reachesBack, !loadingOlder, let start = nextRiotIndex, let archive else {
             reachedEnd = nextRiotIndex == nil
             return
         }

@@ -383,7 +383,7 @@ extension Match {
     }
 
     public func firstBloods(_ player: Player) -> Int {
-        rounds.filter { $0.firstBlood == player.id }.count
+        playedRounds.filter { firstKill(in: $0)?.killer == player.id }.count
     }
 
     /// Share of rounds with a kill, assist, survival or a death traded within five seconds.

@@ -96,8 +96,10 @@ public struct MatchDigest: Codable, Equatable, Sendable, Identifiable {
     public private(set) var shots = Shots()
     public private(set) var firstKills = 0
     public private(set) var firstDeaths = 0
-    /// Rounds that count toward KAST.
+    /// Rounds that count toward KAST, out of `kastRounds`. Riot's `rounds` also counts the round a
+    /// surrender was voted in, so KAST keeps its own count.
     public private(set) var kast = 0
+    public private(set) var kastRounds = 0
     /// Rounds with 2, 3, 4 and 5 or more kills.
     public private(set) var multiKills = [0, 0, 0, 0]
     /// 1v1 through 1v5.
@@ -155,6 +157,7 @@ public struct MatchDigest: Codable, Equatable, Sendable, Identifiable {
         firstKills = match.firstBloods(me)
         firstDeaths = match.firstDeaths(me)
         kast = match.kastRounds(me)?.counted ?? 0
+        kastRounds = match.kastRounds(me)?.played ?? 0
         startSide = match.playedRounds.first.flatMap { match.side(of: team, in: $0) }
 
         for round in match.playedRounds {
@@ -179,8 +182,9 @@ public struct MatchDigest: Codable, Equatable, Sendable, Identifiable {
             if round.planter == me.id { plants += 1 }
             if round.defuser == me.id { defuses += 1 }
             if won, !round.kills.contains(where: { match.player($0.victim)?.team == team }) { flawless += 1 }
-            if round.firstBlood == me.id { withFirstKill.add(won) }
-            if round.kills.first?.victim == me.id { withFirstDeath.add(won) }
+            let opening = match.firstKill(in: round)
+            if opening?.killer == me.id { withFirstKill.add(won) }
+            if opening?.victim == me.id { withFirstDeath.add(won) }
 
             switch match.side(of: team, in: round) {
             case .attack: attack.add(won)

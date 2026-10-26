@@ -133,7 +133,8 @@ public struct CareerStats: Equatable, Sendable {
         ddDelta = hitRounds > 0
             ? Int((Double(damage - Self.sum(withHits, \.damageTaken)) / Double(hitRounds)).rounded()) : nil
         econRating = spent > 0 ? Int((Double(damage) * 1000 / Double(spent)).rounded()) : nil
-        kast = rounds > 0 ? Int((Double(Self.sum(counted, \.kast)) / Double(rounds) * 100).rounded()) : nil
+        let kastRounds = Self.sum(counted, \.kastRounds)
+        kast = kastRounds > 0 ? Int((Double(Self.sum(counted, \.kast)) / Double(kastRounds) * 100).rounded()) : nil
         playtime = counted.reduce(0) { $0 + $1.length }
 
         multiKills = (0..<4).map { index in counted.reduce(0) { $0 + $1.multiKills[index] } }

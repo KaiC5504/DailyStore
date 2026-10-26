@@ -50,6 +50,24 @@ import Testing
         #expect(match.moments(for: F.me) == [Moment(round: 2, kind: .clutch(2))])
     }
 
+    @Test func firstKillsSkipTeamkillsAndSelfKills() {
+        let r = match.rounds[1]
+        // e2 kills their own teammate e1 first; Riot still names e2 as first blood.
+        let teamkill = Match.Kill(time: 1000, killer: F.e2, victim: F.e1, assistants: [], item: "Ability1", kind: "Ability")
+        let round = Match.Round(number: 1, winner: r.winner, result: r.result, winnerRole: r.winnerRole, ceremony: "",
+                                planter: nil, plantSite: nil, plantTime: nil, defuser: nil, defuseTime: nil, firstBlood: F.e2,
+                                kills: [teamkill] + r.kills.filter { $0.victim != F.e1 }, players: r.players)
+        #expect(match.firstKill(in: round)?.killer == F.e1 && match.firstKill(in: round)?.victim == F.me)
+    }
+
+    @Test func modesWithoutAnEconomyHaveNoBuys() {
+        let r = F.surrendered().rounds[4]
+        let opener = Match.Round(number: 0, winner: r.winner, result: "Elimination", winnerRole: r.winnerRole, ceremony: "",
+                                 planter: nil, plantSite: nil, plantTime: nil, defuser: nil, defuseTime: nil, firstBlood: nil,
+                                 kills: [], players: r.players)
+        #expect(match.buy(of: "Blue", in: opener) == nil)
+    }
+
     @Test func surrenderFillersAndSelfKillsDoNotCount() {
         let surrendered = F.surrendered()
         let me = surrendered.player(F.me)!
@@ -69,7 +87,7 @@ import Testing
         #expect(digest.kills == 5 && digest.deaths == 2 && digest.rounds == 4 && digest.performance == 300)
         #expect(digest.damage == 700 && digest.damageTaken == 312 && digest.adr == 175)
         #expect(digest.shots == Shots(head: 4, body: 7, leg: 1))
-        #expect(digest.firstKills == 2 && digest.firstDeaths == 1 && digest.kast == 3)
+        #expect(digest.firstKills == 2 && digest.firstDeaths == 1 && digest.kast == 3 && digest.kastRounds == 4)
         #expect(digest.multiKills == [2, 0, 0, 0])
         #expect(digest.clutches == [Tally(), Tally(played: 1, won: 1), Tally(), Tally(), Tally()])
         #expect(digest.plants == 2 && digest.defuses == 0 && digest.flawless == 1)
