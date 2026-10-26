@@ -145,3 +145,50 @@ import Testing
         #expect(!StatsScope(act: .all, queue: "custom").includes(comp, currentAct: nil))
     }
 }
+
+@Suite struct DigestArchiveTests {
+    typealias F = StatsFixtures
+    func directory() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("digests-\(UUID().uuidString)")
+    }
+
+    @Test func savingAMatchStoresItsDigest() async {
+        let dir = directory()
+        await MatchArchive(directory: dir).save(F.match(), puuid: F.me)
+        #expect(await MatchArchive(directory: dir).digests(puuid: F.me).map(\.id) == ["stats-1"])
+    }
+
+    @Test func missingDigestsAreBuiltFromDetails() async throws {
+        let dir = directory()
+        await MatchArchive(directory: dir).save(F.match(), puuid: F.me)
+        try FileManager.default.removeItem(at: dir.appendingPathComponent("digests.json"))
+        #expect(await MatchArchive(directory: dir).digests(puuid: F.me).first?.kills == 5)
+        #expect(FileManager.default.fileExists(atPath: dir.appendingPathComponent("digests.json").path))
+    }
+
+    @Test func backfillRunsOnce() async throws {
+        let dir = directory()
+        await MatchArchive(directory: dir).save(F.match(), puuid: F.me)
+        _ = await MatchArchive(directory: dir).digests(puuid: F.me)
+        try FileManager.default.removeItem(at: dir.appendingPathComponent("details"))
+        #expect(await MatchArchive(directory: dir).digests(puuid: F.me).count == 1)
+    }
+
+    @Test func outdatedDigestsAreRebuilt() async throws {
+        let dir = directory()
+        await MatchArchive(directory: dir).save(F.match(), puuid: F.me)
+        var old = MatchDigest(match: F.match(), puuid: F.me)
+        old.version = 0
+        try JSONEncoder().encode([old]).write(to: dir.appendingPathComponent("digests.json"))
+        #expect(await MatchArchive(directory: dir).digests(puuid: F.me).first?.version == MatchDigest.version)
+    }
+
+    @Test func newestFirstAndLookedUpById() async {
+        let dir = directory()
+        let archive = MatchArchive(directory: dir)
+        await archive.save(F.match(id: "older", start: Date(timeIntervalSince1970: 1_700_000_000)), puuid: F.me)
+        await archive.save(F.match(id: "newer"), puuid: F.me)
+        #expect(await archive.digests(puuid: F.me).map(\.id) == ["newer", "older"])
+        #expect(await archive.digest("older")?.id == "older")
+    }
+}

@@ -105,14 +105,17 @@ public struct RankStatus: Codable, Equatable, Sendable {
     public let wins: Int
     public let games: Int
     public let fetchedAt: Date
+    /// The active act's season ID, which matches `Match.season`. Nil in ranks saved before it was recorded.
+    public let actID: String?
 
-    public init(tier: Int, rr: Int, act: String?, wins: Int, games: Int, fetchedAt: Date) {
+    public init(tier: Int, rr: Int, act: String?, wins: Int, games: Int, fetchedAt: Date, actID: String? = nil) {
         self.tier = tier
         self.rr = rr
         self.act = act
         self.wins = wins
         self.games = games
         self.fetchedAt = fetchedAt
+        self.actID = actID
     }
 
     public var isRanked: Bool { tier >= 3 }
@@ -124,13 +127,13 @@ public struct RankStatus: Codable, Equatable, Sendable {
         let seasons = raw.QueueSkills?["competitive"]?.SeasonalInfoBySeasonID ?? [:]
         if let act, let info = seasons.first(where: { $0.key.lowercased() == act.id })?.value {
             return RankStatus(tier: info.CompetitiveTier ?? 0, rr: info.RankedRating ?? 0, act: act.name,
-                              wins: info.NumberOfWins ?? 0, games: info.NumberOfGames ?? 0, fetchedAt: now)
+                              wins: info.NumberOfWins ?? 0, games: info.NumberOfGames ?? 0, fetchedAt: now, actID: act.id)
         }
         if act == nil, let latest = raw.LatestCompetitiveUpdate, latest.MatchID.isEmpty == false {
             return RankStatus(tier: latest.TierAfterUpdate ?? 0, rr: latest.RankedRatingAfterUpdate ?? 0, act: nil,
                               wins: 0, games: 0, fetchedAt: now)
         }
-        return RankStatus(tier: 0, rr: 0, act: act?.name, wins: 0, games: 0, fetchedAt: now)
+        return RankStatus(tier: 0, rr: 0, act: act?.name, wins: 0, games: 0, fetchedAt: now, actID: act?.id)
     }
 }
 

@@ -6,6 +6,7 @@ public actor MatchArchive {
     private let directory: URL
     private var index: [MatchSummary]?
     private var updates: [CompetitiveUpdate]?
+    private var digestCache: [MatchDigest]?
 
     public init(directory: URL) {
         self.directory = directory
@@ -31,9 +32,36 @@ public actor MatchArchive {
         read(Match.self, "details/\(id.lowercased()).json")
     }
 
+    /// Newest first. Games saved before digests existed, or under an older `MatchDigest.version`,
+    /// are worked out from their saved details once and kept in digests.json after that.
+    public func digests(puuid: String) -> [MatchDigest] {
+        var known = Dictionary(loadDigests().map { ($0.id, $0) }) { a, _ in a }
+        var changed = false
+        for summary in loadIndex() where known[summary.id]?.version != MatchDigest.version {
+            guard let match = match(summary.id) else { continue }
+            known[summary.id] = MatchDigest(match: match, puuid: puuid)
+            changed = true
+        }
+        guard changed else { return loadDigests() }
+        let digests = known.values.sorted { $0.start > $1.start }
+        digestCache = digests
+        write(digests, "digests.json")
+        return digests
+    }
+
+    public func digest(_ id: String) -> MatchDigest? {
+        let id = id.lowercased()
+        return loadDigests().first { $0.id == id }
+    }
+
     @discardableResult
     public func save(_ match: Match, puuid: String) -> MatchSummary {
         write(match, "details/\(match.id).json")
+        let digest = MatchDigest(match: match, puuid: puuid)
+        var digests = loadDigests().filter { $0.id != match.id }
+        digests.insert(digest, at: digests.firstIndex { $0.start < digest.start } ?? digests.endIndex)
+        digestCache = digests
+        write(digests, "digests.json")
         let summary = MatchSummary(match: match, puuid: puuid, update: loadUpdates().first { $0.id == match.id })
         var summaries = loadIndex().filter { $0.id != match.id }
         let position = summaries.firstIndex { $0.start < summary.start } ?? summaries.endIndex
@@ -87,6 +115,13 @@ public actor MatchArchive {
         if let index { return index }
         let loaded = read([MatchSummary].self, "index.json") ?? []
         index = loaded
+        return loaded
+    }
+
+    private func loadDigests() -> [MatchDigest] {
+        if let digestCache { return digestCache }
+        let loaded = read([MatchDigest].self, "digests.json") ?? []
+        digestCache = loaded
         return loaded
     }
 

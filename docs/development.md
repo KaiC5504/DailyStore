@@ -56,10 +56,11 @@ Screenshot names: `01-first-launch` (real, signed-out), then demo mode `02-today
 cd ios/Packages/ValorantCore && swift test
 ```
 
-69 tests as of build 10 (Swift Testing, `@Test`). Fixtures are in
+94 tests as of the stats engine (Swift Testing, `@Test`). Fixtures are in
 `Tests/ValorantCoreTests/Support.swift` and `MatchFixtures.swift` (hand-written matches in
 the real shape; the repo is public, so never commit real match JSON with other players'
-names). Anything that can live in ValorantCore should,
+names). `StatsFixtures.swift` is one hand-built 4-round 2v2 whose every stat is worked out
+by hand in `StatsTests.swift`. Anything that can live in ValorantCore should,
 because that is the only code testable without CI. Reset/time maths, parsing, caching
 decisions and catalog lookups all have tests; add one for new logic there.
 

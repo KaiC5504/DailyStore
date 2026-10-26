@@ -125,6 +125,7 @@ import Testing
         let act = CurrentAct(id: "8102cd81-43a0-d0d7-bd59-47b8fe9bed1b", name: "ACT V")
         let rank = try RankStatus.parse(mmr: Data(F.mmr.utf8), act: act)
         #expect(rank.tier == 18 && rank.rr == 12 && rank.wins == 14 && rank.games == 25 && rank.act == "ACT V")
+        #expect(rank.actID == "8102cd81-43a0-d0d7-bd59-47b8fe9bed1b")
     }
 
     @Test func noGamesThisActIsUnranked() throws {

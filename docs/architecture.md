@@ -16,8 +16,11 @@ ios/
                                CompactCatalog (for the widget), Catalog.missingIDs
     History.swift              StoreHistory: one compact entry per UTC day
     Matches.swift              Match: match details trimmed for storage, derived stats (PS/ACS rating, HS%, ADR, KAST, duels)
-    MatchSummary.swift         MatchSummary (list row), CompetitiveUpdate, RankStatus, CurrentAct, MatchStats
-    MatchArchive.swift         actor: per-account match archive on disk
+    MatchSummary.swift         MatchSummary (list row), CompetitiveUpdate, RankStatus (with the act ID), CurrentAct, MatchStats
+    MatchAnalysis.swift        per-round reads on Match: side, buy type, clutch, multi-kills, DDΔ, econ rating, moments
+    MatchDigest.swift          MatchDigest: the owner's numbers from one match (Tally, Shots, guns, sites)
+    CareerStats.swift          CareerStats over any set of digests, Playstyle axes, StatsScope (act + queue)
+    MatchArchive.swift         actor: per-account match archive on disk, plus a digest per match
     MatchSync.swift            StoreService.syncMatches / olderMatches: history -> missing details -> archive
     MatchAssets.swift          valorant-api.com maps/agents/tiers/weapons/gear/queue names
     HTTPClient.swift           URLSession wrapper with redirects disabled
@@ -93,7 +96,9 @@ the daily-reminder toggle and `catalogRetryAt`.
 Match archive: `Application Support/matches/<puuid>/` (not Caches: iOS may purge Caches,
 and Riot only lists about five weeks, so this is the only copy of older games). Files:
 `index.json` (every `MatchSummary`, newest first), `details/<matchId>.json` (one `Match`,
-loaded when opened), `updates.json` (every RR update seen), `rank.json`. A trimmed
+loaded when opened), `digests.json` (one `MatchDigest` per match, newest first, so stats never
+load the details; missing or older-version digests are rebuilt from the details once),
+`updates.json` (every RR update seen), `rank.json`. A trimmed
 competitive match is a small fraction of Riot's 600+ KB. Kept on sign-out; per account, so
 another account never mixes in. Not in the keychain: the widget doesn't need it.
 
