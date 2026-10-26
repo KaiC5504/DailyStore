@@ -114,6 +114,7 @@ struct MatchesView: View {
     private func page(_ section: MatchesSection) -> some View {
         switch section {
         case .history: HistoryPage(zoom: zoom)
+        case .overview: OverviewPage()
         default: ContentUnavailableView("Soon", systemImage: "chart.bar").padding(.top, 60)
         }
     }

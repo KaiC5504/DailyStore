@@ -65,14 +65,25 @@ tab because it is only live some weeks; the Today tab badge counts its unreveale
   Owned skins get a mint "OWNED" tag; unless already wishlisted, a seal replaces the
   heart and the row dims. Owned skins never appear in the daily store or Night Market,
   so the tag only lives here and in bundles.
-- **Matches:** "Match History" title; rank card (tier emblem with tier-colour glow, RR
-  bar that fills on appear, RR trend chart of the last 20 ranked games drawn left to
-  right, act W/L); form strip (last 10 as pips that pop in, win % and K/D of the last 20);
-  top 3 agents and top 3 maps (games, win %, K/D; custom games excluded); queue filter
-  chips; map-banner match cards (agent, VICTORY/DEFEAT/DRAW or placement, score, K/D/A,
-  RR chip, PS (ACS for games before patch 13.06), queue, map, relative time; result-coloured edge; 3D deal-in). Games still
-  downloading show as pulsing skeleton cards. Scrolling to the end pages the archive, then
-  asks Riot for older games; the footer says when Riot has nothing older.
+- **Matches:** "Matches" title with a scope capsule on the right ("ACT V · COMP ▾": this act
+  or all time, and one queue or all; remembered). Under it a strip of section pills,
+  History · Overview · Agents · Maps · Guns · Rounds; the sections sit side by side, so a
+  swipe or a pill moves between them, and the strip stays put. Every section counts the
+  same scope; custom games and modes without two sides never count toward stats. Each
+  section fits in one or two screens (owner's rule): longer content goes behind small tabs or
+  "See all", labels are a word or two, and there are no "last 10" comparisons.
+  - **History:** compact rank card (tier emblem with glow, act and W/L, tier, RR bar that
+    fills on appear, RR sparkline of the last 20 ranked games); games grouped by day
+    ("TODAY 3W 1L · +38 RR · 1.58 K/D"); map-banner match cards with the result, score,
+    map · agent · time (queue first when the scope is every queue), RR chip, badge (Match
+    MVP or Team MVP in gold, else place on your team), and K/D/A, PS (ACS before 13.06), HS
+    and ADR; result-coloured edge; 3D deal-in. Games still downloading show as pulsing
+    skeletons. The end of the list pages the archive, then Riot, but only under "All time".
+  - **Overview:** win donut that draws in (win % and W/L) beside K/D, Avg PS, HS% and ADR;
+    a strip of KAST, DDΔ, games and time played; the Playstyle hexagon (aim = HS% on 0–40,
+    entry = FK/FD on 0–2, damage = ADR on 0–220, consistency = KAST on 40–90%, clutch = clutch
+    win % on 0–60, economy = econ rating on 0–120; fixed scales, never other players)
+    growing from the centre; tiles for aces, 4K · 3K, clutches won and flawless rounds.
 - **Match detail:** zoom transition from the card. Map splash header with the result,
   score, RR, date and length; "Your game" card (agent portrait, PS or ACS, K/D/A, HS%, ADR,
   first bloods, KAST); rounds strip (chip per round coloured by winner, icon for how it

@@ -113,6 +113,7 @@ jobs:
           shoot 13-round 14 -DemoTab matches -DemoMatch 1 -DemoRound 7
           shoot 14-player 14 -DemoTab matches -DemoMatch 1 -DemoPlayer 6
           shoot 15-deathmatch 14 -DemoTab matches -DemoMatch 6
+          shoot 16-overview 14 -DemoTab matches -DemoSection overview
           shoot 09-widgets 8 -DemoWidgets YES
           ls -la shots
 
