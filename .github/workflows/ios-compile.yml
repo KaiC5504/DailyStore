@@ -120,6 +120,9 @@ jobs:
           shoot 20-rounds 14 -DemoTab matches -DemoSection rounds
           shoot 21-agent 14 -DemoTab matches -DemoSection agents -DemoAgent 1
           shoot 22-map 14 -DemoTab matches -DemoSection maps -DemoMap 1
+          shoot 23-match-scoreboard 14 -DemoTab matches -DemoMatch 1 -DemoMatchTab scoreboard
+          shoot 24-match-duels 14 -DemoTab matches -DemoMatch 1 -DemoMatchTab duels
+          shoot 25-match-economy 14 -DemoTab matches -DemoMatch 1 -DemoMatchTab economy
           shoot 09-widgets 8 -DemoWidgets YES
           ls -la shots
 

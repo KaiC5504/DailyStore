@@ -8,6 +8,7 @@ struct MatchDetailView: View {
     @State private var loaded = false
     @State private var round: Match.Round?
     @State private var player: Match.Player?
+    @State private var tab = MatchTab.summary
 
     private var me: String { matches.puuid ?? "" }
 
@@ -16,17 +17,34 @@ struct MatchDetailView: View {
             if let match {
                 VStack(alignment: .leading, spacing: 16) {
                     MatchHeader(match: match, me: me, rr: matches.summaries.first { $0.id == match.id }?.rrEarned)
-                    if let mine = match.player(me) {
-                        PerformanceCard(match: match, player: mine, title: "Your game")
+                    PillTabs(tabs(match).map { ($0, $0.rawValue) }, selection: $tab)
+                        .padding(.horizontal, Theme.gutter)
+                    switch tab {
+                    case .summary:
+                        if let mine = match.player(me) {
+                            PerformanceCard(match: match, player: mine, title: "Your game")
+                                .padding(.horizontal, Theme.gutter)
+                        }
+                        let moments = match.moments(for: me)
+                        if !moments.isEmpty {
+                            MomentsRow(moments: moments)
+                        }
+                        if match.hasRounds {
+                            RoundsStrip(match: match, me: me) { round = $0 }
+                        }
+                    case .scoreboard:
+                        Scoreboard(match: match, me: me) { player = $0 }
+                            .padding(.horizontal, Theme.gutter)
+                    case .duels:
+                        DuelBars(match: match, me: me)
+                            .padding(.horizontal, Theme.gutter)
+                    case .economy:
+                        EconomyTab(match: match, me: me)
                             .padding(.horizontal, Theme.gutter)
                     }
-                    if match.hasRounds {
-                        RoundsStrip(match: match, me: me) { round = $0 }
-                    }
-                    Scoreboard(match: match, me: me) { player = $0 }
-                        .padding(.horizontal, Theme.gutter)
                 }
-                .padding(.bottom, 40)
+                .padding(.bottom, 110)
+                .animation(.smooth, value: tab)
             } else if loaded {
                 ContentUnavailableView("Match not saved", systemImage: "externaldrive.badge.xmark",
                                        description: Text("Pull to refresh the match list and try again."))
@@ -52,6 +70,9 @@ struct MatchDetailView: View {
             }
             #if DEBUG
             let defaults = UserDefaults.standard
+            if let raw = defaults.string(forKey: "DemoMatchTab")?.capitalized, let start = MatchTab(rawValue: raw) {
+                tab = start
+            }
             if let match, match.rounds.indices.contains(defaults.integer(forKey: "DemoRound") - 1) {
                 round = match.rounds[defaults.integer(forKey: "DemoRound") - 1]
             }
@@ -60,6 +81,11 @@ struct MatchDetailView: View {
             }
             #endif
         }
+    }
+
+    /// Economy needs rounds with loadouts; Deathmatch has neither.
+    private func tabs(_ match: Match) -> [MatchTab] {
+        match.hasRounds ? MatchTab.allCases : [.summary, .scoreboard, .duels]
     }
 }
 
@@ -130,7 +156,7 @@ struct PerformanceCard: View {
                     }
                     GridRow {
                         StatCell(label: "ADR", value: match.adr(player).map(String.init) ?? "–")
-                        StatCell(label: "FIRST BL.", value: match.hasRounds ? "\(match.firstBloods(player))" : "–")
+                        StatCell(label: "First kills", value: match.hasRounds ? "\(match.firstBloods(player))" : "–")
                         StatCell(label: "KAST", value: match.kast(player).map { "\($0)%" } ?? "–")
                     }
                 }
@@ -156,7 +182,7 @@ private struct RoundsStrip: View {
     var body: some View {
         let team = match.player(me)?.team
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("Rounds · tap one for its kill feed")
+            SectionLabel("Rounds")
                 .padding(.horizontal, Theme.gutter)
             ScrollView(.horizontal) {
                 HStack(spacing: 6) {
@@ -194,103 +220,6 @@ private struct RoundChip: View {
         }
         .frame(width: 36, height: 54)
         .glassEffect(.regular.tint(color.opacity(won ? 0.25 : 0.12)).interactive(), in: .rect(cornerRadius: 10))
-    }
-}
-
-struct Scoreboard: View {
-    @Environment(MatchesModel.self) private var matches
-    let match: Match
-    let me: String
-    let select: (Match.Player) -> Void
-
-    struct Block {
-        let title: String
-        let score: Int?
-        let color: Color
-        let players: [Match.Player]
-    }
-
-    /// The owner's side first, each sorted by rating; free-for-all modes are one list by kills.
-    static func ordered(_ match: Match, me: String) -> [Block] {
-        guard match.hasSides, let mine = match.player(me)?.team else {
-            return [Block(title: "Players", score: nil, color: .white,
-                          players: match.players.sorted { ($0.kills, $0.score) > ($1.kills, $1.score) })]
-        }
-        return match.teams.sorted { ($0.id == mine ? 0 : 1) < ($1.id == mine ? 0 : 1) }.map { team in
-            Block(title: team.id == mine ? "Your team" : "Enemy team", score: team.roundsWon,
-                  color: team.id == mine ? Theme.win : Theme.loss,
-                  players: match.players.filter { $0.team == team.id }.sorted { match.rating($0) > match.rating($1) })
-        }
-    }
-
-    var body: some View {
-        let party = match.player(me)?.party
-        VStack(alignment: .leading, spacing: 14) {
-            ForEach(Self.ordered(match, me: me), id: \.title) { block in
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        SectionLabel(block.title)
-                        Spacer()
-                        Text(match.ratingLabel).frame(width: 50, alignment: .trailing)
-                        Text("K / D / A").frame(width: 76, alignment: .trailing)
-                    }
-                    .font(Theme.label(8)).tracking(1)
-                    .foregroundStyle(Theme.textFaint)
-                    ForEach(Array(block.players.enumerated()), id: \.element.id) { index, player in
-                        Button { select(player) } label: {
-                            row(player, place: match.hasSides ? nil : index + 1, color: block.color,
-                                isMe: player.id == me, partied: player.id != me && !player.party.isEmpty && player.party == party)
-                        }
-                        .buttonStyle(PressableStyle())
-                    }
-                }
-            }
-        }
-    }
-
-    private func row(_ player: Match.Player, place: Int?, color: Color, isMe: Bool, partied: Bool) -> some View {
-        let agent = matches.assets?.agent(player.agent)
-        let tier = matches.assets?.tier(player.tier)
-        return HStack(spacing: 10) {
-            if let place {
-                Text("\(place)").font(Theme.display(18)).frame(width: 22)
-            }
-            RemoteImage(url: agent?.icon)
-                .frame(width: 36, height: 36)
-                .background(color.opacity(0.18), in: .rect(cornerRadius: 9))
-                .clipShape(.rect(cornerRadius: 9))
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 4) {
-                    Text(player.name.isEmpty ? (agent?.name ?? "Player") : player.name)
-                        .font(.subheadline.weight(.bold))
-                        .lineLimit(1)
-                    if match.mvp == player.id {
-                        Image(systemName: "star.fill").font(.system(size: 10)).foregroundStyle(Theme.newItem)
-                    }
-                    if partied {
-                        Image(systemName: "person.2.fill").font(.system(size: 9)).foregroundStyle(Theme.textDim)
-                    }
-                }
-                HStack(spacing: 4) {
-                    if player.tier >= 3 {
-                        RemoteImage(url: tier?.icon).frame(width: 14, height: 14)
-                    }
-                    Text(player.tag.isEmpty ? (agent?.name ?? "") : "#\(player.tag)")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Theme.textFaint)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 4)
-            Text("\(match.rating(player))")
-                .frame(width: 50, alignment: .trailing)
-            Text("\(player.kills)/\(player.deaths)/\(player.assists)")
-                .frame(width: 76, alignment: .trailing)
-        }
-        .font(.system(size: 14, weight: .heavy).monospacedDigit())
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .glassEffect(isMe ? .regular.tint(color.opacity(0.3)) : .regular, in: .rect(cornerRadius: Theme.chipRadius))
     }
 }
 
