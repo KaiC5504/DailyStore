@@ -21,12 +21,13 @@ Read `docs/README.md` first. It indexes everything a new session needs.
 
 ## How to ship a change
 
-1. Work on `dev`. Run `bash tools/check-app.sh` (local compile check in WSL via xtool, a few
-   seconds) until it says OK. Push. Wait for the GitHub Actions run
-   (`gh run watch <id> --exit-status`).
+GitHub has only `main`. Work branches, if any, stay local and are never pushed.
+
+1. Run `bash tools/check-app.sh` (local compile check in WSL via xtool, a few seconds)
+   until it says OK. Commit on `main` and push. Wait for the compile check
+   (`gh run watch <id> --exit-status`). Comment- or docs-only commits get `[skip ci]`.
 2. Download the `simulator-screenshots` artifact and look at every screen you touched.
-3. `git checkout main && git merge --ff-only dev && git push && git checkout dev`, then
-   `python scripts/testflight.py start` and `python scripts/testflight.py watch <id>` in
+3. `python scripts/testflight.py start` and `python scripts/testflight.py watch <id>` in
    the background. Green means Apple has processed the build. After any change to
    `testflight.yml`, run `start --dry-run` first.
 4. Report the TestFlight build number with test steps the owner can do on the phone.

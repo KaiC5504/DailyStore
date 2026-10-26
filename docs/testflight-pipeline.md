@@ -20,7 +20,7 @@ longer than the build, and GitHub's macOS runners are free on a public repo.
 | `scripts/testflight-requirements.txt` | Hash-pinned codemagic-cli-tools (the open-source signing and upload CLI; no Codemagic account involved). |
 | `ios/project.yml` | XcodeGen spec. The `.xcodeproj` is generated on the build machine and never committed. |
 | `ios/Sources/App/Assets.xcassets/AppIcon.appiconset/icon-1024.png` | App icon (fanned glass cards) from `scripts/make_icon.py`. Uploads without a 1024 icon are rejected. |
-| `.github/workflows/ios-compile.yml` | Free compile check: core tests, simulator build, launch, demo-mode screenshots. Runs on every branch for pushes that touch `ios/`. |
+| `.github/workflows/ios-compile.yml` | Free compile check: core tests, simulator build, launch, demo-mode screenshots. Runs on pushes to `main` that touch `ios/`. |
 | `tools/check-app.sh`, `tools/app-check/` | Local compile check before pushing: the app and widget sources built with SwiftPM in WSL against xtool's iOS SDK. Mirrors the targets in `ios/project.yml`; keep it in step. |
 
 Identity used everywhere: app name `DailyStore`, scheme `DailyStore`, bundle id
@@ -75,11 +75,11 @@ The repo is public, so the build log is public too.
 
 ## Shipping a build
 
-Iterate on `dev` first (see `development.md`); main only gets fast-forwarded once the
-compile check on `dev` is green and the screenshots look right.
+GitHub has only `main`. Check locally first (see `development.md`), push `main`, and
+start the signed build once its compile check is green and the screenshots look right.
 
 ```
-git checkout main && git merge --ff-only dev && git push origin main && git checkout dev
+git push origin main
 python scripts/testflight.py start
 python scripts/testflight.py watch <id>     # in the background; about 15-20 min
 ```

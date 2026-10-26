@@ -24,11 +24,12 @@ A CI round takes 11 minutes and a signed build about 20, so:
    paths, one failing file per run. `--release` (no `DEBUG`), `--device`, `--app-only`,
    `--warnings`, `--repo DIR`. It only compiles: no tests, assets, Info.plist or signing,
    and its SDK is newer than CI's, so CI stays the gate.
-1. Commit on `dev` and push. Actions (`.github/workflows/ios-compile.yml`) runs on every
-   branch: core package tests, XcodeGen, simulator build, launch, demo screenshots.
-   It takes about 11 minutes.
+1. Commit on `main` and push. GitHub has only `main`; work branches stay local. Actions
+   (`.github/workflows/ios-compile.yml`) runs on pushes to `main` that touch `ios/`:
+   core package tests, XcodeGen, simulator build, launch, demo screenshots. It takes
+   about 11 minutes. Comment- or docs-only commits get `[skip ci]`.
    ```
-   gh run list --branch dev --limit 1
+   gh run list --branch main --limit 1
    gh run watch <id> --exit-status
    gh run view <id> --log-failed | grep "error:"     # on failure
    gh run download <id> -n simulator-screenshots -D <scratch dir>
@@ -36,14 +37,12 @@ A CI round takes 11 minutes and a signed build about 20, so:
 2. Open the screenshots you care about and actually look at them. They are the only view
    of the UI before the phone. They come from a 6.3" simulator (1170x2532); the owner's
    phone is an iPhone 17 Pro Max (larger).
-3. When green and the pixels look right: `git checkout main && git merge --ff-only dev &&
-   git push origin main`.
-4. `python scripts/testflight.py start` then `python scripts/testflight.py watch <id>`
-   in the background. About 15-20 minutes; green means Apple has processed the build.
-   Details in `testflight-pipeline.md`.
-5. Tell the owner the build number, what changed, how it works, and test steps.
+3. When green and the pixels look right: `python scripts/testflight.py start`, then
+   `python scripts/testflight.py watch <id>` in the background. About 15-20 minutes;
+   green means Apple has processed the build. Details in `testflight-pipeline.md`.
+4. Tell the owner the build number, what changed, how it works, and test steps.
 
-The owner has authorised steps 1-5 without asking each time. Chain commands with `&&`.
+The owner has authorised steps 1-4 without asking each time. Chain commands with `&&`.
 
 Screenshot names: `01-first-launch` (real, signed-out), then demo mode `02-today`,
 `03-night-hidden` and `04-night-revealed` (the Night Market cover opened from Today),

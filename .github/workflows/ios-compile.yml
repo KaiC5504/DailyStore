@@ -3,8 +3,11 @@ name: iOS compile check
 # Unsigned simulator build: app build, launch, one screenshot. Needs no Apple account.
 # The signed device build is testflight.yml.
 
+# GitHub only has main; work branches stay local and are checked with tools/check-app.sh.
+# Push comment- or docs-only changes with [skip ci] in the commit message.
 on:
   push:
+    branches: [main]
     paths:
       - "ios/**"
       - ".github/workflows/ios-compile.yml"
