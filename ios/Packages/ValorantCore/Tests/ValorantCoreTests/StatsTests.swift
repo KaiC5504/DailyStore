@@ -94,3 +94,54 @@ import Testing
         #expect(try JSONDecoder().decode(MatchDigest.self, from: data) == digest)
     }
 }
+
+@Suite struct CareerStatsTests {
+    typealias F = StatsFixtures
+    func d(_ m: Match) -> MatchDigest { MatchDigest(match: m, puuid: F.me) }
+
+    @Test func totalsFromOneGame() {
+        let c = CareerStats([d(F.match())])
+        #expect(c.games == 1 && c.wins == 1 && c.winRate == 100 && c.kd == 2.5)
+        #expect(c.adr == 175 && c.kast == 75 && c.ddDelta == 97 && c.econRating == 86 && c.performance == 300)
+        #expect(c.clutch == Tally(played: 1, won: 1) && c.flawless == 1 && c.plants == 2)
+        #expect(c.startAttack == Tally(played: 1, won: 1) && c.playtime == 1800)
+    }
+
+    @Test func careerOfNothingHasNoNumbers() {
+        let c = CareerStats([d(F.match(isCustom: true)), d(F.deathmatch())])
+        #expect(c.games == 0 && c.winRate == nil && c.adr == nil && c.kast == nil && c.performance == nil)
+        #expect(c.shots.percent(\.head) == nil && c.playstyle == .zero && c.agents.isEmpty)
+    }
+
+    @Test func gamesWithoutHitsLeaveHeadshotsAndAdrBlank() {
+        let c = CareerStats([d(F.match(hits: false))])
+        #expect(c.games == 1 && c.adr == nil && c.shots.percent(\.head) == nil && c.ddDelta == nil)
+        let mixed = CareerStats([d(F.match(hits: false)), d(F.match(id: "stats-2"))])
+        #expect(mixed.adr == 175)
+    }
+
+    @Test func agentsMapsAndGunsAreGroupedAndSorted() {
+        let c = CareerStats([d(F.match()), d(F.match(id: "s2", map: F.haven, won: false)),
+                             d(F.match(id: "s3", agent: F.sova))])
+        #expect(c.agents.map(\.key) == [F.jett, F.sova] && c.agents[0].games == 2 && c.agents[0].wins == 1)
+        #expect(c.maps.map(\.key) == [F.ascent, F.haven] && c.maps[0].winRate == 100)
+        #expect(c.guns.map(\.kills) == [6, 6, 3] && c.guns.last?.key == "ability")
+    }
+
+    @Test func playstyleUsesFixedScales() {
+        let p = CareerStats([d(F.match())]).playstyle
+        #expect(abs(p.aim - 33.333 / 40) < 0.001 && p.entry == 1 && abs(p.damage - 175.0 / 220) < 0.001)
+        #expect(abs(p.consistency - 0.7) < 0.001 && p.clutch == 1 && abs(p.economy - 86.0 / 120) < 0.001)
+    }
+
+    @Test func scopeFiltersActAndQueue() {
+        let comp = d(F.match())
+        #expect(StatsScope().includes(comp, currentAct: "act-5"))
+        #expect(!StatsScope().includes(comp, currentAct: "act-6"))
+        #expect(StatsScope().includes(comp, currentAct: nil))
+        #expect(StatsScope(act: .all, queue: "competitive").includes(comp, currentAct: "act-6"))
+        #expect(!StatsScope(act: .all, queue: "unrated").includes(comp, currentAct: nil))
+        #expect(StatsScope(act: .all, queue: "custom").includes(d(F.match(queue: "", isCustom: true)), currentAct: nil))
+        #expect(!StatsScope(act: .all, queue: "custom").includes(comp, currentAct: nil))
+    }
+}
