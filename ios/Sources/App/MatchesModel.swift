@@ -39,6 +39,7 @@ final class MatchesModel {
     @ObservationIgnored private var archive: MatchArchive?
     @ObservationIgnored private var nextRiotIndex: Int? = RiotAPI.pageSize
     @ObservationIgnored private var lastSync: Date?
+    @ObservationIgnored private var syncTask: Task<Void, Never>?
 
     init(service: StoreService, isDemo: Bool, log: @escaping (String) -> Void) {
         self.service = service
@@ -86,8 +87,22 @@ final class MatchesModel {
         await refresh()
     }
 
+    /// The sync runs in its own task: SwiftUI cancels the tab's `.task` and the pull-to-refresh
+    /// task when the tab is left or the refresh ends, and cancelled downloads used to leave games
+    /// stuck as skeletons with "cancelled" on top. A second caller waits for the running sync.
     func refresh() async {
-        guard !isDemo, phase != .syncing, let archive = await openArchiveIfNeeded() else { return }
+        if let syncTask { return await syncTask.value }
+        guard !isDemo, let archive = await openArchiveIfNeeded() else { return }
+        if let syncTask { return await syncTask.value }
+        let task = Task { [self] in
+            await sync(archive)
+            syncTask = nil
+        }
+        syncTask = task
+        await task.value
+    }
+
+    private func sync(_ archive: MatchArchive) async {
         phase = .syncing
         do {
             let result = try await service.syncMatches(into: archive) { [weak self] event in
@@ -95,12 +110,17 @@ final class MatchesModel {
             }
             nextRiotIndex = result.next
             reachedEnd = result.next == nil
-            lastSync = Date()
+            // Games that failed to download are retried on the next visit, not two minutes later.
+            lastSync = result.failed == 0 ? Date() : nil
             await reload(from: archive)
             phase = .idle
         } catch {
-            log("Matches error: \(error.localizedDescription)")
             pending = []
+            if Task.isCancelled {
+                phase = .idle
+                return
+            }
+            log("Matches error: \(error.localizedDescription)")
             phase = .failed(error.localizedDescription)
         }
     }
@@ -149,6 +169,8 @@ final class MatchesModel {
     }
 
     func signedOut() {
+        syncTask?.cancel()
+        syncTask = nil
         archive = nil
         puuid = nil
         setSummaries([])
@@ -171,7 +193,7 @@ final class MatchesModel {
             var list = summaries.filter { $0.id != summary.id }
             list.insert(summary, at: list.firstIndex { $0.start < summary.start } ?? list.endIndex)
             setSummaries(list)
-        case let .unavailable(id):
+        case let .unavailable(id), let .failed(id):
             pending.removeAll { $0.id == id }
         }
     }

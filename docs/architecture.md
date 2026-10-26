@@ -15,7 +15,7 @@ ios/
     Schedule.swift             StoreClock (UTC reset maths), staleness, Wishlist.hits,
                                CompactCatalog (for the widget), Catalog.missingIDs
     History.swift              StoreHistory: one compact entry per UTC day
-    Matches.swift              Match: match details trimmed for storage, derived stats (APS/ACS rating, HS%, ADR, KAST, duels)
+    Matches.swift              Match: match details trimmed for storage, derived stats (PS/ACS rating, HS%, ADR, KAST, duels)
     MatchSummary.swift         MatchSummary (list row), CompetitiveUpdate, RankStatus, CurrentAct, MatchStats
     MatchArchive.swift         actor: per-account match archive on disk
     MatchSync.swift            StoreService.syncMatches / olderMatches: history -> missing details -> archive

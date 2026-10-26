@@ -69,7 +69,7 @@ Match details facts from real responses:
   can be null.
 - Riot now sends `roundResults[].firstBloodPlayer`, `winningTeamRole`, `matchMvp`,
   `teams[].mvp`, and obfuscated `TempValue*` fields.
-- `players[].scores.TempValueF` is the Performance Score (APS, 0-500, patch 13.06), which
+- `players[].scores.TempValueF` is the Performance Score (PS, 0-500, patch 13.06), which
   replaced ACS in the client. It matched the client to the point on nine of the owner's
   games and is the only field that ranks the match MVP first in all ten checked
   (`tools/probe.py --aps`, 2026-10-26). The app rounds it. Other `scores` fields seen:

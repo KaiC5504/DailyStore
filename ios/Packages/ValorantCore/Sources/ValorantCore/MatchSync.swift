@@ -6,6 +6,8 @@ public enum MatchSyncEvent: Sendable {
     case saved(MatchSummary)
     /// Riot listed it but has no details for it; drop the placeholder.
     case unavailable(String)
+    /// The download failed this time; drop the placeholder, the next sync tries again.
+    case failed(String)
 }
 
 public struct MatchSyncResult: Sendable, Equatable {
@@ -99,6 +101,7 @@ extension StoreService {
                 case let .failure(error):
                     result.failed += 1
                     log("Match details: \(error.localizedDescription)")
+                    await onEvent(.failed(id))
                 }
             }
             if start + 2 < missing.count, api.retryBase > 0 {

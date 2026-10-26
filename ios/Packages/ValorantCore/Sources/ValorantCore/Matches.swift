@@ -358,7 +358,7 @@ extension Match {
     }
 
     public var ratingLabel: String {
-        players.contains { $0.performance != nil } ? "APS" : hasRounds ? "ACS" : "SCORE"
+        players.contains { $0.performance != nil } ? "PS" : hasRounds ? "ACS" : "SCORE"
     }
 
     public func hits(by id: String) -> [Hit] {

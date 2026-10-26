@@ -58,7 +58,7 @@ import Testing
         let mate = try #require(match.player(F.mate))
         #expect(me.performance == 288 && mate.performance == nil)
         #expect(match.rating(me) == 288 && match.rating(mate) == match.acs(mate))
-        #expect(match.ratingLabel == "APS")
+        #expect(match.ratingLabel == "PS")
         let summary = MatchSummary(match: match, puuid: F.me)
         #expect(summary.performance == 288 && summary.acs == 200 && summary.schema == Match.currentSchema)
 
@@ -254,9 +254,11 @@ import Testing
         http.on("/match-details/v1/matches/m-broken", status: 500, json: "{}")
         http.on("/match-details/v1/matches/m-fine", json: F.details(id: "m-fine", start: 1789000000000))
 
-        let result = try await service(http).syncMatches(into: archive()) { _ in }
+        let events = EventLog()
+        let result = try await service(http).syncMatches(into: archive()) { await events.add($0) }
 
         #expect(result.added == 2 && result.failed == 1)
+        #expect(await events.failed == ["m-broken"])
         #expect(http.requests(to: "m-limited").count == 2)
         #expect(http.requests(to: "m-broken").count == 3)
     }
@@ -359,11 +361,13 @@ import Testing
 actor EventLog {
     private(set) var pending: [String] = []
     private(set) var unavailable: [String] = []
+    private(set) var failed: [String] = []
 
     func add(_ event: MatchSyncEvent) {
         switch event {
         case let .pending(entries): pending += entries.map(\.id)
         case let .unavailable(id): unavailable.append(id)
+        case let .failed(id): failed.append(id)
         case .saved: break
         }
     }
