@@ -385,6 +385,10 @@ extension Match {
 
     /// Share of rounds with a kill, assist, survival or a death traded within five seconds.
     public func kast(_ player: Player) -> Int? {
+        kastRounds(player).map { Int((Double($0.counted) / Double($0.played) * 100).rounded()) }
+    }
+
+    public func kastRounds(_ player: Player) -> (counted: Int, played: Int)? {
         guard hasRounds else { return nil }
         let played = rounds.filter { round in round.players.contains { $0.id == player.id } }
         guard !played.isEmpty else { return nil }
@@ -397,7 +401,7 @@ extension Match {
                     && self.player(kill.killer)?.team == team
             }
         }
-        return Int((Double(counted.count) / Double(played.count) * 100).rounded())
+        return (counted.count, played.count)
     }
 
     /// Kills on and deaths to each opponent, most kills first.

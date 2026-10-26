@@ -165,15 +165,6 @@ private struct RoundsStrip: View {
     let me: String
     let select: (Match.Round) -> Void
 
-    /// Where sides swap; Riot doesn't say, so it follows each mode's rules.
-    private var halftime: Int {
-        switch match.queue {
-        case "swiftplay": 4
-        case "spikerush": 3
-        default: 12
-        }
-    }
-
     var body: some View {
         let team = match.player(me)?.team
         VStack(alignment: .leading, spacing: 8) {
@@ -182,7 +173,7 @@ private struct RoundsStrip: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 6) {
                     ForEach(match.rounds) { round in
-                        if round.number == halftime {
+                        if round.number == match.halftime {
                             Capsule().fill(.white.opacity(0.25)).frame(width: 2, height: 40).padding(.horizontal, 4)
                         }
                         Button { select(round) } label: {
