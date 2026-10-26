@@ -257,7 +257,7 @@ struct MatchCard: View {
         var parts = [map?.name ?? "Map", agent?.name ?? "Agent", summary.start.formatted(date: .omitted, time: .shortened)]
         // With one queue picked the header already names it.
         if matches.scope.queue == nil {
-            parts.insert(matches.queueName(summary.isCustom ? MatchesModel.customFilter : summary.queue), at: 0)
+            parts.insert(matches.shortQueueName(summary.isCustom ? MatchesModel.customFilter : summary.queue), at: 0)
         }
         return parts.joined(separator: " · ").uppercased()
     }

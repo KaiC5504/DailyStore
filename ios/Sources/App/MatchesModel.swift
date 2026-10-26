@@ -103,11 +103,7 @@ final class MatchesModel {
     }
 
     var scopeLabel: String {
-        let queue = switch scope.queue {
-        case nil: "All"
-        case "competitive": "Comp"
-        case let other?: queueName(other)
-        }
+        let queue = scope.queue.map(shortQueueName) ?? "All"
         return "\(scope.act == .all ? "All time" : actLabel) · \(queue)"
     }
 
@@ -120,6 +116,11 @@ final class MatchesModel {
 
     func queueName(_ queue: String) -> String {
         queue == Self.customFilter ? "Custom" : (assets?.queueName(queue) ?? MatchAssets.displayFallback(queue))
+    }
+
+    /// For tight spots like the scope capsule and card lines.
+    func shortQueueName(_ queue: String) -> String {
+        queue == "competitive" ? "Comp" : queueName(queue)
     }
 
     /// Stats for part of the scope, such as one agent or one map.
