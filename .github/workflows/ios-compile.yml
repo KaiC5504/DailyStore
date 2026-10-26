@@ -118,6 +118,8 @@ jobs:
           shoot 18-maps 14 -DemoTab matches -DemoSection maps
           shoot 19-guns 14 -DemoTab matches -DemoSection guns
           shoot 20-rounds 14 -DemoTab matches -DemoSection rounds
+          shoot 21-agent 14 -DemoTab matches -DemoSection agents -DemoAgent 1
+          shoot 22-map 14 -DemoTab matches -DemoSection maps -DemoMap 1
           shoot 09-widgets 8 -DemoWidgets YES
           ls -la shots
 

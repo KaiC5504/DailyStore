@@ -56,11 +56,11 @@ struct MatchesView: View {
                 MatchDetailView(id: route.id)
                     .navigationTransition(.zoom(sourceID: route.id, in: zoom))
             }
-            .navigationDestination(for: AgentRoute.self) { _ in
-                ContentUnavailableView("Soon", systemImage: "person.fill")
+            .navigationDestination(for: AgentRoute.self) { route in
+                AgentPage(id: route.id)
             }
-            .navigationDestination(for: MapRoute.self) { _ in
-                ContentUnavailableView("Soon", systemImage: "map.fill")
+            .navigationDestination(for: MapRoute.self) { route in
+                MapPage(url: route.url)
             }
             .toolbarVisibility(.hidden, for: .navigationBar)
         }
@@ -72,9 +72,15 @@ struct MatchesView: View {
             }
         }
         .task(id: matches.summaries.count) {
-            let index = UserDefaults.standard.integer(forKey: "DemoMatch")
-            guard index > 0, path.isEmpty, matches.shown.indices.contains(index - 1) else { return }
-            path.append(MatchRoute(id: matches.shown[index - 1].id))
+            let defaults = UserDefaults.standard
+            guard path.isEmpty else { return }
+            if matches.shown.indices.contains(defaults.integer(forKey: "DemoMatch") - 1) {
+                path.append(MatchRoute(id: matches.shown[defaults.integer(forKey: "DemoMatch") - 1].id))
+            } else if matches.career.agents.indices.contains(defaults.integer(forKey: "DemoAgent") - 1) {
+                path.append(AgentRoute(id: matches.career.agents[defaults.integer(forKey: "DemoAgent") - 1].key))
+            } else if matches.career.maps.indices.contains(defaults.integer(forKey: "DemoMap") - 1) {
+                path.append(MapRoute(url: matches.career.maps[defaults.integer(forKey: "DemoMap") - 1].key))
+            }
         }
         #endif
     }
