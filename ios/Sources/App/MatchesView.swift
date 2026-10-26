@@ -118,7 +118,7 @@ struct MatchesView: View {
         case .agents: AgentsPage()
         case .maps: MapsPage()
         case .guns: GunsPage()
-        default: ContentUnavailableView("Soon", systemImage: "chart.bar").padding(.top, 60)
+        case .rounds: RoundsPage()
         }
     }
 }

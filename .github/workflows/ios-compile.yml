@@ -114,6 +114,10 @@ jobs:
           shoot 14-player 14 -DemoTab matches -DemoMatch 1 -DemoPlayer 6
           shoot 15-deathmatch 14 -DemoTab matches -DemoMatch 6
           shoot 16-overview 14 -DemoTab matches -DemoSection overview
+          shoot 17-agents 14 -DemoTab matches -DemoSection agents
+          shoot 18-maps 14 -DemoTab matches -DemoSection maps
+          shoot 19-guns 14 -DemoTab matches -DemoSection guns
+          shoot 20-rounds 14 -DemoTab matches -DemoSection rounds
           shoot 09-widgets 8 -DemoWidgets YES
           ls -la shots
 
