@@ -151,48 +151,6 @@ public struct CurrentAct: Equatable, Sendable {
     }
 }
 
-/// Top agents and maps, recent form. Custom games don't count.
-public struct MatchStats: Equatable, Sendable {
-    public struct Line: Equatable, Sendable, Identifiable {
-        public let key: String
-        public let games: Int
-        public let wins: Int
-        public let kills: Int
-        public let deaths: Int
-
-        public var id: String { key }
-        public var winRate: Int { games > 0 ? Int((Double(wins) / Double(games) * 100).rounded()) : 0 }
-        public var kd: Double { Double(kills) / Double(max(deaths, 1)) }
-    }
-
-    public let agents: [Line]
-    public let maps: [Line]
-    /// Newest first.
-    public let form: [MatchOutcome]
-    public let recent: Line
-
-    public init(_ summaries: [MatchSummary], top: Int = 3, formLength: Int = 10) {
-        let counted = summaries.filter { !$0.isCustom }.sorted { $0.start > $1.start }
-        agents = Self.lines(counted, by: \.agent, top: top)
-        maps = Self.lines(counted, by: \.mapURL, top: top)
-        form = counted.prefix(formLength).map(\.outcome)
-        recent = Self.line("recent", Array(counted.prefix(20)))
-    }
-
-    private static func lines(_ summaries: [MatchSummary], by key: KeyPath<MatchSummary, String>, top: Int) -> [Line] {
-        Dictionary(grouping: summaries.filter { !$0[keyPath: key].isEmpty }) { $0[keyPath: key] }
-            .map { line($0.key, $0.value) }
-            .sorted { ($0.games, $0.winRate, $0.key) > ($1.games, $1.winRate, $1.key) }
-            .prefix(top)
-            .map { $0 }
-    }
-
-    private static func line(_ key: String, _ games: [MatchSummary]) -> Line {
-        Line(key: key, games: games.count, wins: games.filter { $0.outcome.isWin }.count,
-             kills: games.reduce(0) { $0 + $1.kills }, deaths: games.reduce(0) { $0 + $1.deaths })
-    }
-}
-
 struct RawUpdate: Decodable {
     let MatchID: String
     let MapID: String?

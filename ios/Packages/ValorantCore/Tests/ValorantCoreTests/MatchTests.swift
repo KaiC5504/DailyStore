@@ -99,18 +99,6 @@ import Testing
         let decoded = try JSONDecoder().decode(Match.self, from: JSONEncoder().encode(match))
         #expect(decoded == match)
     }
-
-    @Test func statsSkipCustomGames() throws {
-        let summaries = try [F.competitive, F.custom, F.deathmatch].map {
-            MatchSummary(match: try Match.parse(Data($0.utf8)), puuid: F.me)
-        }
-        let stats = MatchStats(summaries)
-        #expect(stats.form == [.win, .placement(2)])
-        #expect(stats.agents.first?.key == F.jett.lowercased())
-        #expect(stats.agents.first?.games == 2 && stats.agents.first?.winRate == 50)
-        #expect(stats.maps.map(\.key) == ["/Game/Maps/Ascent/Ascent"])
-        #expect(stats.recent.kills == 28)
-    }
 }
 
 @Suite struct RankParsingTests {

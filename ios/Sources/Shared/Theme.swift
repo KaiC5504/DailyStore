@@ -28,6 +28,13 @@ enum Theme {
     static let owned = Color(red: 0.36, green: 0.9, blue: 0.7)
     static let win = Color(red: 0.3, green: 0.85, blue: 0.78)
     static let loss = Color(red: 1.0, green: 0.36, blue: 0.42)
+    static let attack = Color(red: 1.0, green: 0.54, blue: 0.36)
+    static let defense = Color(red: 0.36, green: 0.72, blue: 1.0)
+    static let ability = Color(red: 0.78, green: 0.61, blue: 0.95)
+    static let gold = Color(red: 0.95, green: 0.76, blue: 0.31)
+    /// The hit figure's second and third most-hit parts; the most-hit part is `win`.
+    static let hitMid = Color(red: 0.42, green: 0.39, blue: 0.5)
+    static let hitLow = Color(red: 0.24, green: 0.22, blue: 0.31)
 }
 
 extension Color {

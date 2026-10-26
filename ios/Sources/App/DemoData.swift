@@ -106,6 +106,8 @@ extension DemoData {
                                  "462080d1-4035-2937-7c09-27aa2a5c27a7"]
     private static let pistols = ["1baa85b4-4c70-1284-64bb-6481dfc3bb4e", "e336c6b8-418d-9340-d77f-7a9e4cfe0702",
                                   "29a0cfab-485b-f5d5-779a-b59f85e204a8"]
+    /// Spectre and Sheriff, what a force buy carries.
+    private static let forceGuns = ["462080d1-4035-2937-7c09-27aa2a5c27a7", "e336c6b8-418d-9340-d77f-7a9e4cfe0702"]
     private static let heavyArmor = "822bcab2-40a2-324e-c137-e09195ad7692"
     private static let lightArmor = "4dec83d5-4902-9ab3-bed6-a7a390761157"
 
@@ -136,7 +138,17 @@ extension DemoData {
         MatchSummary(match: match, puuid: me, update: updates.first { $0.id == match.id })
     }
 
-    static let rank = RankStatus(tier: 18, rr: 62, act: "V26 · ACT V", wins: 14, games: 25, fetchedAt: Date())
+    static let rank = RankStatus(tier: 18, rr: 62, act: "V26 · ACT V", wins: 14, games: 25, fetchedAt: Date(), actID: "demo")
+
+    static let digests: [MatchDigest] = matches.map { MatchDigest(match: $0, puuid: me) }
+
+    private static func arsenal(_ buy: Buy) -> [String] {
+        switch buy {
+        case .pistol, .eco: pistols
+        case .force: forceGuns
+        case .full: rifles
+        }
+    }
 
     fileprivate struct Rng: RandomNumberGenerator {
         var state: UInt64
@@ -195,10 +207,19 @@ extension DemoData {
         var assists: [String: Int] = [:]
         var score: [String: Int] = [:]
         var rounds: [Match.Round] = []
+        // Rounds lost in a row per team, so a side that keeps losing saves on an eco.
+        var losing = ["Blue": 0, "Red": 0]
         for (number, blueWon) in order.enumerated() {
             let winners = blueWon ? blue : red
             let losers = blueWon ? red : blue
             let pistolRound = number == 0 || number == half
+            if pistolRound { losing = ["Blue": 0, "Red": 0] }
+            let buys = ["Blue", "Red"].reduce(into: [String: Buy]()) { buys, team in
+                buys[team] = pistolRound ? .pistol : losing[team, default: 0] >= 2 ? .eco : number % 5 == 3 ? .force : .full
+            }
+            let blueAttacks = number < half
+            let attackers = blueAttacks ? blue : red
+            let winnersAttack = blueWon == blueAttacks
             var alive = Set(blue + red)
             var roundKills: [Match.Kill] = []
             var hits: [String: [Match.Hit]] = [:]
@@ -213,7 +234,7 @@ extension DemoData {
                 guard !shooters.isEmpty else { continue }
                 let killer = shooters[rng.next(shooters.count)]
                 let ability = rng.next(100) < 6
-                let guns = pistolRound ? pistols : rifles
+                let guns = arsenal(buys[blue.contains(killer) ? "Blue" : "Red"]!)
                 let item = ability ? "Ultimate" : guns[rng.next(guns.count)]
                 let helpers = side.filter { $0 != killer && alive.contains($0) }
                 let assist = !helpers.isEmpty && rng.next(100) < 35 ? [helpers[rng.next(helpers.count)]] : []
@@ -228,26 +249,36 @@ extension DemoData {
                 time += 3000 + rng.next(9000)
             }
             let roll = rng.next(100)
-            let result = roll < 60 ? "Elimination" : roll < 80 ? "Detonate" : roll < 95 ? "Defuse" : ""
+            let result = winnersAttack ? (roll < 65 ? "Elimination" : "Detonate")
+                : (roll < 55 ? "Elimination" : roll < 90 ? "Defuse" : "")
             let planted = result == "Detonate" || result == "Defuse"
-            let planter = planted ? (result == "Detonate" ? winners : losers)[rng.next(size)] : nil
             let players = (blue + red).map { player -> Match.RoundPlayer in
-                let guns = pistolRound ? pistols : rifles
-                let loadout = pistolRound ? 800 : 3900 + rng.next(9) * 100
+                let buy = buys[blue.contains(player) ? "Blue" : "Red"]!
+                let guns = arsenal(buy)
+                let loadout = switch buy {
+                case .pistol: 800
+                case .eco: 900 + rng.next(7) * 100
+                case .force: 2400 + rng.next(4) * 100
+                case .full: 3900 + rng.next(9) * 100
+                }
                 let damage = hits[player] ?? []
                 score[player, default: 0] += damage.reduce(0) { $0 + $1.damage } + damage.count * 70
-                return Match.RoundPlayer(id: player, score: 0, loadout: loadout, spent: pistolRound ? 800 : loadout - 400,
+                return Match.RoundPlayer(id: player, score: 0, loadout: loadout, spent: buy == .pistol ? 800 : loadout - 400,
                                          remaining: 200 + rng.next(30) * 100, weapon: guns[rng.next(guns.count)],
-                                         armor: pistolRound ? lightArmor : heavyArmor, hits: damage)
+                                         armor: buy == .full ? heavyArmor : lightArmor, hits: damage)
             }
             rounds.append(Match.Round(
-                number: number, winner: blueWon ? "Blue" : "Red", result: result, winnerRole: nil,
-                ceremony: "CeremonyDefault", planter: planter, plantSite: planted ? ["A", "B"][rng.next(2)] : nil,
+                number: number, winner: blueWon ? "Blue" : "Red", result: result,
+                winnerRole: winnersAttack ? "Attacker" : "Defender",
+                ceremony: "CeremonyDefault", planter: planted ? attackers[rng.next(size)] : nil,
+                plantSite: planted ? ["A", "B"][rng.next(2)] : nil,
                 plantTime: planted ? 40000 + rng.next(30000) : nil,
-                defuser: result == "Defuse" ? winners[rng.next(size)] : nil,
+                defuser: result == "Defuse" ? (winners.contains(me) && rng.next(3) == 0 ? me : winners[rng.next(size)]) : nil,
                 defuseTime: result == "Defuse" ? 90000 + rng.next(10000) : nil,
                 firstBlood: roundKills.first?.killer, kills: roundKills, players: players
             ))
+            losing[blueWon ? "Red" : "Blue", default: 0] += 1
+            losing[blueWon ? "Blue" : "Red"] = 0
         }
         let count = order.count
         let players = (blue + red).enumerated().map { slot, id in

@@ -15,13 +15,18 @@ public struct StatsScope: Codable, Hashable, Sendable {
         self.queue = queue
     }
 
-    /// Without a known current act there is nothing to narrow to, so every act counts.
     public func includes(_ digest: MatchDigest, currentAct: String?) -> Bool {
-        if act == .current, let currentAct, digest.season != currentAct { return false }
-        switch queue {
+        includes(queue: digest.queue, isCustom: digest.isCustom, season: digest.season, currentAct: currentAct)
+    }
+
+    /// Without a known current act there is nothing to narrow to, so every act counts. A game whose
+    /// season isn't known yet only shows under "All time".
+    public func includes(queue: String, isCustom: Bool, season: String?, currentAct: String?) -> Bool {
+        if act == .current, let currentAct, season != currentAct { return false }
+        switch self.queue {
         case nil: return true
-        case "custom": return digest.isCustom
-        case let queue?: return !digest.isCustom && digest.queue == queue
+        case "custom": return isCustom
+        case let wanted?: return !isCustom && queue == wanted
         }
     }
 }

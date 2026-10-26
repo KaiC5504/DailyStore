@@ -63,13 +63,6 @@ struct MatchesView: View {
         if let rank = matches.rank {
             RankCard(rank: rank, updates: matches.updates)
         }
-        if !matches.stats.form.isEmpty {
-            FormStrip(stats: matches.stats)
-            StatsSection(stats: matches.stats)
-        }
-        if matches.queues.count > 1 {
-            FilterChips()
-        }
         if matches.summaries.isEmpty && matches.pending.isEmpty {
             if matches.phase == .syncing {
                 HStack(spacing: 10) {
@@ -239,92 +232,6 @@ struct RRTrend: View {
     }
 }
 
-struct FormStrip: View {
-    let stats: MatchStats
-
-    var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("LAST \(stats.form.count)")
-                    .font(Theme.label(10)).tracking(1.4)
-                    .foregroundStyle(Theme.textDim)
-                HStack(spacing: 5) {
-                    ForEach(Array(stats.form.reversed().enumerated()), id: \.offset) { index, outcome in
-                        FormPip(outcome: outcome, index: index)
-                    }
-                }
-            }
-            Spacer(minLength: 0)
-            StatPair(label: "WIN", value: "\(stats.recent.winRate)%")
-            StatPair(label: "K/D", value: stats.recent.kd.formatted(.number.precision(.fractionLength(2))))
-        }
-        .padding(14)
-        .glassEffect(.regular, in: .rect(cornerRadius: Theme.cardRadius - 6))
-    }
-}
-
-private struct FormPip: View {
-    let outcome: MatchOutcome
-    let index: Int
-    @State private var shown = false
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: 3)
-            .fill(outcome.color.gradient)
-            .frame(width: 14, height: 22)
-            .scaleEffect(y: shown ? 1 : 0.1, anchor: .bottom)
-            .onAppear {
-                withAnimation(.spring(response: 0.45, dampingFraction: 0.6).delay(Double(index) * 0.05)) { shown = true }
-            }
-    }
-}
-
-struct StatPair: View {
-    let label: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .trailing, spacing: 2) {
-            Text(label).font(Theme.label(9)).tracking(1.2).foregroundStyle(Theme.textFaint)
-            Text(value).font(Theme.display(26)).monospacedDigit()
-        }
-    }
-}
-
-struct StatsSection: View {
-    @Environment(MatchesModel.self) private var matches
-    let stats: MatchStats
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if !stats.agents.isEmpty {
-                SectionLabel("Top agents")
-                HStack(spacing: 10) {
-                    ForEach(stats.agents) { line in
-                        let agent = matches.assets?.agent(line.key)
-                        StatTile(line: line, title: agent?.name ?? "Agent", tint: agent.map(\.tint) ?? Theme.violet) {
-                            RemoteImage(url: agent?.icon).frame(width: 40, height: 40)
-                        }
-                    }
-                    ForEach(stats.agents.count..<3, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity) }
-                }
-            }
-            if !stats.maps.isEmpty {
-                SectionLabel("Top maps")
-                HStack(spacing: 10) {
-                    ForEach(stats.maps) { line in
-                        let map = matches.assets?.map(line.key)
-                        StatTile(line: line, title: map?.name ?? "Map", tint: Theme.accent, background: map?.banner) {
-                            EmptyView()
-                        }
-                    }
-                    ForEach(stats.maps.count..<3, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity) }
-                }
-            }
-        }
-    }
-}
-
 struct SectionLabel: View {
     let text: String
 
@@ -335,78 +242,6 @@ struct SectionLabel: View {
             .font(Theme.label(10)).tracking(1.6)
             .foregroundStyle(Theme.textDim)
             .padding(.top, 4)
-    }
-}
-
-private struct StatTile<Icon: View>: View {
-    let line: MatchStats.Line
-    let title: String
-    let tint: Color
-    var background: URL?
-    @ViewBuilder let icon: () -> Icon
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            icon()
-            Text(title.uppercased())
-                .font(Theme.display(18))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(line.games == 1 ? "1 GAME" : "\(line.games) GAMES")
-                .font(Theme.label(8)).tracking(1)
-                .foregroundStyle(Theme.textDim)
-            HStack(spacing: 6) {
-                Text("\(line.winRate)%").foregroundStyle(line.winRate >= 50 ? Theme.win : Theme.loss)
-                Text(line.kd.formatted(.number.precision(.fractionLength(2))) + " KD").foregroundStyle(Theme.textDim)
-            }
-            .font(.system(size: 12, weight: .heavy).monospacedDigit())
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 118, alignment: .bottomLeading)
-        .background {
-            if let background {
-                FillImage(url: background)
-                    .overlay(LinearGradient(colors: [.black.opacity(0.15), .black.opacity(0.75)], startPoint: .top, endPoint: .bottom))
-                    .clipShape(.rect(cornerRadius: Theme.chipRadius + 4))
-            }
-        }
-        .glassEffect(.regular.tint(tint.opacity(0.12)), in: .rect(cornerRadius: Theme.chipRadius + 4))
-    }
-}
-
-struct FilterChips: View {
-    @Environment(MatchesModel.self) private var matches
-
-    var body: some View {
-        ScrollView(.horizontal) {
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 8) {
-                    chip(nil, "All")
-                    ForEach(matches.queues, id: \.self) { queue in
-                        chip(queue, matches.queueName(queue))
-                    }
-                }
-            }
-        }
-        .scrollIndicators(.hidden)
-        .scrollClipDisabled()
-    }
-
-    private func chip(_ queue: String?, _ title: String) -> some View {
-        let on = matches.filter == queue
-        return Button {
-            withAnimation(.snappy) { matches.select(queue) }
-        } label: {
-            Text(title.uppercased())
-                .font(Theme.label(10)).tracking(1.1)
-                .foregroundStyle(on ? .white : Theme.textDim)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-        }
-        .buttonStyle(.plain)
-        .glassEffect(on ? .regular.tint(Theme.accent.opacity(0.45)).interactive() : .regular.interactive(), in: .capsule)
     }
 }
 

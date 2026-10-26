@@ -12,15 +12,24 @@ final class MatchesModel {
         case failed(String)
     }
 
-    /// Queue filter value for custom games, which Riot sends with an empty queue ID.
+    /// Queue value for custom games, which Riot sends with an empty queue ID.
     static let customFilter = "custom"
     static let pageSize = 20
+    private static let scopeKey = "MatchesScope"
 
     private(set) var summaries: [MatchSummary] = []
-    private(set) var stats = MatchStats([])
+    /// Newest first.
+    private(set) var digests: [MatchDigest] = []
+    /// False until the archive's digests are loaded; the first launch after an update builds them.
+    private(set) var digestsReady = false
+    /// Digests in the current scope, newest first.
+    private(set) var scoped: [MatchDigest] = []
+    private(set) var career = CareerStats([])
     /// Listed by Riot, details still downloading.
     private(set) var pending: [HistoryEntry] = []
-    private(set) var rank: RankStatus?
+    private(set) var rank: RankStatus? {
+        didSet { recompute() }
+    }
     /// Newest first.
     private(set) var updates: [CompetitiveUpdate] = []
     private(set) var assets: MatchAssets?
@@ -29,7 +38,16 @@ final class MatchesModel {
     private(set) var reachedEnd = false
     private(set) var visibleCount = MatchesModel.pageSize
     private(set) var puuid: String?
-    private(set) var filter: String?
+    var scope: StatsScope {
+        didSet {
+            guard scope != oldValue else { return }
+            visibleCount = Self.pageSize
+            recompute()
+            if !isDemo, let data = try? JSONEncoder().encode(scope) {
+                UserDefaults.standard.set(data, forKey: Self.scopeKey)
+            }
+        }
+    }
 
     @ObservationIgnored private let service: StoreService
     @ObservationIgnored private let log: (String) -> Void
@@ -40,22 +58,58 @@ final class MatchesModel {
     @ObservationIgnored private var nextRiotIndex: Int? = RiotAPI.pageSize
     @ObservationIgnored private var lastSync: Date?
     @ObservationIgnored private var syncTask: Task<Void, Never>?
+    @ObservationIgnored private var digestByID: [String: MatchDigest] = [:]
 
     init(service: StoreService, isDemo: Bool, log: @escaping (String) -> Void) {
         self.service = service
         self.isDemo = isDemo
         self.log = log
+        let saved = UserDefaults.standard.data(forKey: Self.scopeKey).flatMap { try? JSONDecoder().decode(StatsScope.self, from: $0) }
+        // Demo screenshots index into the full list, so demo mode always starts on every queue.
+        scope = isDemo ? StatsScope(act: .current, queue: nil) : (saved ?? StatsScope())
     }
 
+    /// History's list: the same act and queue as the stats.
     var filtered: [MatchSummary] {
-        guard let filter else { return summaries }
-        return summaries.filter { filter == Self.customFilter ? $0.isCustom : (!$0.isCustom && $0.queue == filter) }
+        let act = currentAct
+        return summaries.filter {
+            scope.includes(queue: $0.queue, isCustom: $0.isCustom, season: digestByID[$0.id]?.season, currentAct: act)
+        }
     }
 
     var shown: [MatchSummary] { Array(filtered.prefix(visibleCount)) }
 
-    /// Skeleton rows only make sense in the unfiltered list, where they land in order.
-    var shownPending: [HistoryEntry] { filter == nil ? pending : [] }
+    /// New games belong to the current act, so only the queue decides whether their skeletons fit the list.
+    var shownPending: [HistoryEntry] {
+        pending.filter { entry in
+            switch scope.queue {
+            case nil: true
+            case .some(Self.customFilter): entry.queue.isEmpty
+            case let wanted?: entry.queue == wanted
+            }
+        }
+    }
+
+    func digest(_ id: String) -> MatchDigest? { digestByID[id] }
+
+    /// The act the stats call "this act": the one Riot's rank came from, else the newest game's.
+    var currentAct: String? {
+        rank?.actID ?? digests.first { !$0.isCustom && !$0.season.isEmpty }?.season
+    }
+
+    var actLabel: String {
+        guard let act = rank?.act, let last = act.components(separatedBy: " · ").last else { return "This act" }
+        return last.capitalized
+    }
+
+    var scopeLabel: String {
+        let queue = switch scope.queue {
+        case nil: "All"
+        case "competitive": "Comp"
+        case let other?: queueName(other)
+        }
+        return "\(scope.act == .all ? "All time" : actLabel) · \(queue)"
+    }
 
     /// Queues present in the archive, most played first.
     var queues: [String] {
@@ -68,6 +122,11 @@ final class MatchesModel {
         queue == Self.customFilter ? "Custom" : (assets?.queueName(queue) ?? MatchAssets.displayFallback(queue))
     }
 
+    /// Stats for part of the scope, such as one agent or one map.
+    func career(where keep: (MatchDigest) -> Bool) -> CareerStats {
+        CareerStats(scoped.filter(keep))
+    }
+
     /// Called whenever the tab shows. Syncs on first show and then at most every two minutes.
     func appear(clientVersion: String?) async {
         await loadAssets(clientVersion: clientVersion)
@@ -75,9 +134,10 @@ final class MatchesModel {
         if isDemo {
             if summaries.isEmpty {
                 puuid = DemoData.me
-                setSummaries(DemoData.summaries)
+                summaries = DemoData.summaries
                 rank = DemoData.rank
                 updates = DemoData.updates
+                setDigests(DemoData.digests)
             }
             return
         }
@@ -126,12 +186,13 @@ final class MatchesModel {
     }
 
     /// Shows the next page of the archive, and asks Riot for older games once the archive runs out.
+    /// Older games belong to older acts, so a list scoped to this act never pages Riot.
     func loadMore() async {
         if visibleCount < filtered.count {
             visibleCount += Self.pageSize
             return
         }
-        guard !isDemo, !loadingOlder, let start = nextRiotIndex, let archive else {
+        guard !isDemo, scope.act == .all, !loadingOlder, let start = nextRiotIndex, let archive else {
             reachedEnd = nextRiotIndex == nil
             return
         }
@@ -148,11 +209,6 @@ final class MatchesModel {
         } catch {
             log("Older matches error: \(error.localizedDescription)")
         }
-    }
-
-    func select(_ queue: String?) {
-        filter = queue
-        visibleCount = Self.pageSize
     }
 
     func match(_ id: String) async -> Match? {
@@ -173,7 +229,9 @@ final class MatchesModel {
         syncTask = nil
         archive = nil
         puuid = nil
-        setSummaries([])
+        summaries = []
+        setDigests([])
+        digestsReady = false
         pending = []
         rank = nil
         updates = []
@@ -183,31 +241,44 @@ final class MatchesModel {
         phase = .idle
     }
 
-    private func handle(_ event: MatchSyncEvent) {
+    private func handle(_ event: MatchSyncEvent) async {
         switch event {
         case let .pending(entries):
             let known = Set(summaries.map(\.id)).union(pending.map(\.id))
             pending = (pending + entries.filter { !known.contains($0.id) }).sorted { $0.start > $1.start }
         case let .saved(summary):
+            // The digest first, so the card lands with its HS and ADR and in the right scope.
+            if let digest = await archive?.digest(summary.id) {
+                setDigests(digests.filter { $0.id != digest.id } + [digest])
+            }
             pending.removeAll { $0.id == summary.id }
             var list = summaries.filter { $0.id != summary.id }
             list.insert(summary, at: list.firstIndex { $0.start < summary.start } ?? list.endIndex)
-            setSummaries(list)
+            summaries = list
         case let .unavailable(id), let .failed(id):
             pending.removeAll { $0.id == id }
         }
     }
 
-    private func setSummaries(_ list: [MatchSummary]) {
-        summaries = list
-        stats = MatchStats(list)
+    private func setDigests(_ list: [MatchDigest]) {
+        digests = list.sorted { $0.start > $1.start }
+        digestByID = Dictionary(digests.map { ($0.id, $0) }) { a, _ in a }
+        digestsReady = true
+        recompute()
+    }
+
+    private func recompute() {
+        let act = currentAct
+        scoped = digests.filter { scope.includes($0, currentAct: act) }
+        career = CareerStats(scoped)
     }
 
     private func reload(from archive: MatchArchive) async {
-        setSummaries(await archive.summaries())
+        summaries = await archive.summaries()
         updates = await archive.rrUpdates()
         rank = await archive.rank()
         pending.removeAll { entry in summaries.contains { $0.id == entry.id } }
+        setDigests(await archive.digests(puuid: puuid ?? ""))
     }
 
     /// Archives are per account, so a second Riot account never mixes into the first one's history.
