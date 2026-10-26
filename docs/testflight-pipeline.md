@@ -15,6 +15,7 @@ tests only on TestFlight, so a change is not verified until it is on the phone.
 | `ios/project.yml` | XcodeGen spec. The `.xcodeproj` is generated on the build machine and never committed. |
 | `ios/Sources/App/Assets.xcassets/AppIcon.appiconset/icon-1024.png` | App icon (fanned glass cards) from `scripts/make_icon.py`. Uploads without a 1024 icon are rejected. |
 | `.github/workflows/ios-compile.yml` | Free compile check: core tests, simulator build, launch, nine demo-mode screenshots. Runs on every branch for pushes that touch `ios/`. |
+| `tools/check-app.sh`, `tools/app-check/` | Local compile check before pushing: the app and widget sources built with SwiftPM in WSL against xtool's iOS SDK. Mirrors the targets in `ios/project.yml`; keep it in step. |
 
 Identity used everywhere: app name `DailyStore`, scheme `DailyStore`, bundle id
 `com.kaichuan.dailystore`. Changing any of these means changing `codemagic.yaml`,

@@ -20,7 +20,9 @@ Read `docs/README.md` first. It indexes everything a new session needs.
 
 ## How to ship a change
 
-1. Work on `dev`. Push. Wait for the GitHub Actions run (`gh run watch <id> --exit-status`).
+1. Work on `dev`. Run `bash tools/check-app.sh` (local compile check in WSL via xtool, a few
+   seconds) until it says OK. Push. Wait for the GitHub Actions run
+   (`gh run watch <id> --exit-status`).
 2. Download the `simulator-screenshots` artifact and look at every screen you touched.
 3. `git checkout main && git merge --ff-only dev && git push`, then
    `python scripts/codemagic.py start main` and `python scripts/codemagic.py watch`.

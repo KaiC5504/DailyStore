@@ -4,17 +4,27 @@
 
 Windows 11, no Mac. Tools on the owner's machine:
 
-- Swift 6.3 for Windows. It builds and tests `ios/Packages/ValorantCore` (pure Swift, no
+- Swift 6.4 for Windows. It builds and tests `ios/Packages/ValorantCore` (pure Swift, no
   UIKit). It cannot build the app.
+- WSL Ubuntu with Swift 6.4 and xtool's iOS SDK (from Xcode 27.1). `tools/check-app.sh`
+  compiles the app and widget there in seconds. Setup: `tools/app-check/README.md`.
 - `gh` logged in as `KaiC5504`. Repo: `KaiC5504/DailyStore` (public, see below).
 - Python for `scripts/` and `tools/`; `uv` runs `tools/probe.py`.
 - Orca for any browser work. Do not use the claude-in-chrome tools.
 
 ## The loop
 
-Compile feedback only comes from CI, and Codemagic minutes are limited (500 free a
-month, roughly 15 per build), so:
+Codemagic minutes are limited (500 free a month, roughly 15 per build), and a CI round
+takes 11 minutes, so:
 
+0. Before every push that touches `ios/`, compile locally:
+   ```
+   bash tools/check-app.sh              # PowerShell: tools\check-app.ps1
+   ```
+   About 15 s cold, a few seconds after small edits. It prints compiler errors with repo
+   paths, one failing file per run. `--release` (no `DEBUG`), `--device`, `--app-only`,
+   `--warnings`, `--repo DIR`. It only compiles: no tests, assets, Info.plist or signing,
+   and its SDK is newer than CI's, so CI stays the gate.
 1. Commit on `dev` and push. Actions (`.github/workflows/ios-compile.yml`) runs on every
    branch: core package tests, XcodeGen, simulator build, launch, demo screenshots.
    It takes about 11 minutes.

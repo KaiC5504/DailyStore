@@ -47,3 +47,9 @@ Each entry: what was chosen, why, and what not to redo. Newest last.
 
 12. **Public repo for now.** Free macOS minutes. Owner wants it private later; remind
     them, don't flip it without being told.
+
+13. **Local compile check with xtool.** xtool's iOS SDK lets SwiftPM in WSL compile the
+    app and widget sources in seconds, so compile errors are fixed before pushing instead
+    of one 11-minute CI round each. It is a mirror (`tools/app-check/Package.swift`), not
+    the real build: XcodeGen and CI stay the source of truth, and the mirror has to be
+    kept in step with `ios/project.yml`. Same setup as BiliNative.
